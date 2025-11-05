@@ -168,7 +168,12 @@ class MainWindow(QMainWindow):
         
         # File menu
         file_menu = menu_bar.addMenu("File")
-        
+
+        file_menu.addSeparator()
+        delete_file_action = QAction("Delete File", self)
+        delete_file_action.triggered.connect(self.delete_file)
+        file_menu.addAction(delete_file_action)
+
         new_action = QAction("New", self)
         new_action.triggered.connect(self.new_tab)
         file_menu.addAction(new_action)
@@ -419,6 +424,10 @@ class MainWindow(QMainWindow):
             self.strike_btn.setChecked(fmt.fontStrikeOut())
 
     def setup_shortcuts(self):
+        # Delete current file shortcut
+        deleteFileShortcut = QShortcut(QKeySequence("Ctrl+Delete"), self)
+        deleteFileShortcut.activated.connect(self.delete_file)
+
         # Save shortcut
         saveShortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         saveShortcut.activated.connect(self.save)
@@ -492,6 +501,33 @@ class MainWindow(QMainWindow):
         if current_index >= 0:
             self.close_tab(current_index)
     
+    def delete_file(self):
+        current_tab = self.get_current_tab()
+        if not current_tab or not current_tab.current_file:
+            QMessageBox.information(self, "Delete File", "No file to delete.")
+            return
+        
+        filename = current_tab.current_file
+        reply = QMessageBox.question(
+            self,
+            "Delete File",
+            f"Are you sure you want to delete '{os.path.basename(filename)}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                os.remove(filename)
+                self.statusBar().showMessage(f"File deleted: {filename}", 3000)
+                
+                # Close the tab after deletion
+                current_index = self.tab_widget.currentIndex()
+                self.close_tab(current_index)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Could not delete file:\n{str(e)}")
+    
+
+
     def tab_changed(self, index):
         if index >= 0 and index < len(self.tabs):
             doc_tab = self.tabs[index]
