@@ -1,6 +1,7 @@
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
+import os
 
 class DocumentTab:
     def __init__(self, name=None):
@@ -11,7 +12,10 @@ class DocumentTab:
         self.name = name or "New Document"
 
     def get_display_name(self):
-        filename = self.current_file.split('/')[-1] if self.current_file else self.name
+        if self.current_file:
+            filename = os.path.basename(self.current_file)
+        else:
+            filename = self.name
         return f"{'*' if self.is_modified else ''}{filename}"
 
 class MainWindow(QMainWindow):
@@ -80,11 +84,35 @@ class MainWindow(QMainWindow):
         QColorDialog {
             background-color: #2D2D2D;
         }
+        QMenuBar {
+            background-color: #404040;
+            border-bottom: 1px solid #555555;
+        }
+        QMenuBar::item {
+            padding: 5px 10px;
+            background-color: transparent;
+        }
+        QMenuBar::item:selected {
+            background-color: #4A4A4A;
+        }
+        QMenu {
+            background-color: #404040;
+            border: 1px solid #555555;
+        }
+        QMenu::item {
+            padding: 5px 30px;
+        }
+        QMenu::item:selected {
+            background-color: #4A4A4A;
+        }
         """
 
         self.setStyleSheet(style)
         self.setWindowTitle("Rich Text Notepad")
         self.setFixedSize(QSize(1200, 700))
+
+        # Create menu bar
+        self.create_menu_bar()
 
         # Create central widget with layout
         central_widget = QWidget()
@@ -134,6 +162,36 @@ class MainWindow(QMainWindow):
         
         # Set up shortcuts
         self.setup_shortcuts()
+
+    def create_menu_bar(self):
+        menu_bar = self.menuBar()
+        
+        # File menu
+        file_menu = menu_bar.addMenu("File")
+        
+        new_action = QAction("New", self)
+        new_action.triggered.connect(self.new_tab)
+        file_menu.addAction(new_action)
+        
+        open_action = QAction("Open...", self)
+        open_action.triggered.connect(self.open_file)
+        file_menu.addAction(open_action)
+        
+        file_menu.addSeparator()
+        
+        save_action = QAction("Save", self)
+        save_action.triggered.connect(self.save)
+        file_menu.addAction(save_action)
+        
+        save_as_action = QAction("Save As...", self)
+        save_as_action.triggered.connect(lambda: self.save_as())
+        file_menu.addAction(save_as_action)
+        
+        file_menu.addSeparator()
+        
+        close_tab_action = QAction("Close Tab", self)
+        close_tab_action.triggered.connect(self.close_current_tab)
+        file_menu.addAction(close_tab_action)
         
     def create_formatting_toolbar(self):
         self.format_toolbar = QToolBar("Formatting")
@@ -224,7 +282,7 @@ class MainWindow(QMainWindow):
             is_bold = fmt.fontWeight() == QFont.Weight.Bold
             fmt.setFontWeight(QFont.Weight.Normal if is_bold else QFont.Weight.Bold)
             current_tab.text_edit.setCurrentCharFormat(fmt)
-            self.bold_btn.setChecked(not is_bold)  # <-- Add this
+            self.bold_btn.setChecked(not is_bold)
             current_tab.text_edit.setFocus()
     
     def toggle_italic(self):
@@ -234,10 +292,9 @@ class MainWindow(QMainWindow):
             is_italic = fmt.fontItalic()
             fmt.setFontItalic(not is_italic)
             current_tab.text_edit.setCurrentCharFormat(fmt)
-            self.italic_btn.setChecked(not is_italic)  # <-- Add this
+            self.italic_btn.setChecked(not is_italic)
             current_tab.text_edit.setFocus()
 
-    
     def toggle_underline(self):
         current_tab = self.get_current_tab()
         if current_tab:
@@ -245,15 +302,17 @@ class MainWindow(QMainWindow):
             is_underlined = fmt.fontUnderline()
             fmt.setFontUnderline(not is_underlined)
             current_tab.text_edit.setCurrentCharFormat(fmt)
-            self.underline_btn.setChecked(not is_underlined)  # <-- Add this
+            self.underline_btn.setChecked(not is_underlined)
             current_tab.text_edit.setFocus()
     
     def toggle_strikethrough(self):
         current_tab = self.get_current_tab()
         if current_tab:
             fmt = current_tab.text_edit.currentCharFormat()
-            fmt.setFontStrikeOut(not fmt.fontStrikeOut())
+            is_strike = fmt.fontStrikeOut()
+            fmt.setFontStrikeOut(not is_strike)
             current_tab.text_edit.setCurrentCharFormat(fmt)
+            self.strike_btn.setChecked(not is_strike)
             current_tab.text_edit.setFocus()
     
     def change_text_color(self):
@@ -364,6 +423,10 @@ class MainWindow(QMainWindow):
         saveShortcut = QShortcut(QKeySequence("Ctrl+S"), self)
         saveShortcut.activated.connect(self.save)
         
+        # Save As shortcut
+        saveAsShortcut = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        saveAsShortcut.activated.connect(lambda: self.save_as())
+        
         # Open shortcut
         openShortcut = QShortcut(QKeySequence("Ctrl+O"), self)
         openShortcut.activated.connect(self.open_file)
@@ -469,7 +532,7 @@ class MainWindow(QMainWindow):
                     doc_tab.is_modified = False
                     self.update_tab_title(doc_tab)
                     self.update_window_title(doc_tab)
-                    print(f"File saved: {doc_tab.current_file} ✅")
+                    self.statusBar().showMessage(f"File saved: {doc_tab.current_file}", 3000)
                     return True
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not save file:\n{str(e)}")
@@ -503,7 +566,7 @@ class MainWindow(QMainWindow):
                     doc_tab.is_modified = False
                     self.update_tab_title(doc_tab)
                     self.update_window_title(doc_tab)
-                    print(f"File saved as {filename} ✅")
+                    self.statusBar().showMessage(f"File saved as: {filename}", 3000)
                     return True
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not save file:\n{str(e)}")
@@ -515,10 +578,17 @@ class MainWindow(QMainWindow):
             self,
             "Open File",
             "",
-            "HTML Files (*.html);;Text Files (*.txt);;All Files (*)"
+            "All Supported Files (*.html *.txt);;HTML Files (*.html);;Text Files (*.txt);;All Files (*)"
         )
         
         if filename:
+            # Check if file is already open in a tab
+            for i, tab in enumerate(self.tabs):
+                if tab.current_file == filename:
+                    self.tab_widget.setCurrentIndex(i)
+                    self.statusBar().showMessage(f"File already open: {filename}", 3000)
+                    return
+            
             try:
                 with open(filename, 'r', encoding='utf-8') as file:
                     content = file.read()
@@ -540,14 +610,14 @@ class MainWindow(QMainWindow):
                     doc_tab.text_edit.cursorPositionChanged.connect(self.update_format_buttons)
                     
                     # Add tab
-                    file_name = filename.split('/')[-1]
+                    file_name = os.path.basename(filename)
                     index = self.tab_widget.addTab(doc_tab.text_edit, file_name)
                     self.tabs.append(doc_tab)
                     
                     # Switch to new tab
                     self.tab_widget.setCurrentIndex(index)
                     
-                    print(f"File opened: {filename} ✅")
+                    self.statusBar().showMessage(f"File opened: {filename}", 3000)
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Could not open file:\n{str(e)}")
     
