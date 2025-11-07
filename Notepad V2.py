@@ -155,6 +155,33 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCornerWidget(plus_button, Qt.Corner.TopRightCorner)
 
         layout.addWidget(self.tab_widget)
+
+                # --- Search Bar ---
+        self.search_bar = QWidget()
+        search_layout = QHBoxLayout(self.search_bar)
+        search_layout.setContentsMargins(5, 5, 5, 5)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Find...")
+        self.search_input.returnPressed.connect(self.find_next)
+        search_layout.addWidget(self.search_input)
+
+        self.find_next_btn = QPushButton("Next")
+        self.find_next_btn.clicked.connect(self.find_next)
+        search_layout.addWidget(self.find_next_btn)
+
+        self.find_prev_btn = QPushButton("Prev")
+        self.find_prev_btn.clicked.connect(lambda: self.find_next(backward=True))
+        search_layout.addWidget(self.find_prev_btn)
+
+        self.close_search_btn = QPushButton("X")
+        self.close_search_btn.setFixedWidth(30)
+        self.close_search_btn.clicked.connect(self.hide_search_bar)
+        search_layout.addWidget(self.close_search_btn)
+
+        self.search_bar.setVisible(False)
+        layout.addWidget(self.search_bar)
+
         self.setCentralWidget(central_widget)
         
         # Create first tab
@@ -170,31 +197,31 @@ class MainWindow(QMainWindow):
         file_menu = menu_bar.addMenu("File")
 
         file_menu.addSeparator()
-        delete_file_action = QAction("Delete File", self)
+        delete_file_action = QAction("Delete File (Ctrl+Del)", self)
         delete_file_action.triggered.connect(self.delete_file)
         file_menu.addAction(delete_file_action)
 
-        new_action = QAction("New", self)
+        new_action = QAction("New (Ctrl+N)", self)
         new_action.triggered.connect(self.new_tab)
         file_menu.addAction(new_action)
         
-        open_action = QAction("Open...", self)
+        open_action = QAction("Open File (Ctrl+O)", self)
         open_action.triggered.connect(self.open_file)
         file_menu.addAction(open_action)
         
         file_menu.addSeparator()
         
-        save_action = QAction("Save", self)
+        save_action = QAction("Save File (Ctrl+S)", self)
         save_action.triggered.connect(self.save)
         file_menu.addAction(save_action)
         
-        save_as_action = QAction("Save As...", self)
+        save_as_action = QAction("Save File As (Ctrl+Shift+S)", self)
         save_as_action.triggered.connect(lambda: self.save_as())
         file_menu.addAction(save_as_action)
         
         file_menu.addSeparator()
         
-        close_tab_action = QAction("Close Tab", self)
+        close_tab_action = QAction("Close Tab (Ctrl + W)", self)
         close_tab_action.triggered.connect(self.close_current_tab)
         file_menu.addAction(close_tab_action)
         
@@ -423,10 +450,65 @@ class MainWindow(QMainWindow):
             self.underline_btn.setChecked(fmt.fontUnderline())
             self.strike_btn.setChecked(fmt.fontStrikeOut())
 
+    def show_search_bar(self):
+        self.search_bar.setVisible(True)
+        self.search_input.setFocus()
+
+    def hide_search_bar(self):
+        self.search_bar.setVisible(False)
+        current_tab = self.get_current_tab()
+        if current_tab:
+            cursor = current_tab.text_edit.textCursor()
+            cursor.clearSelection()
+            current_tab.text_edit.setTextCursor(cursor)
+
+    def find_next(self, backward=False):
+        current_tab = self.get_current_tab()
+        if not current_tab:
+            return
+
+        text_edit = current_tab.text_edit
+        search_text = self.search_input.text()
+        if not search_text:
+            return
+
+        # Create proper find flags
+        flags = QTextDocument.FindFlag(0)
+        if backward:
+            flags = QTextDocument.FindFlag.FindBackward
+
+        found = text_edit.find(search_text, flags)
+        if not found:
+            # Wrap around
+            cursor = text_edit.textCursor()
+            if backward:
+                cursor.movePosition(QTextCursor.MoveOperation.End)
+            else:
+                cursor.movePosition(QTextCursor.MoveOperation.Start)
+            text_edit.setTextCursor(cursor)
+            text_edit.find(search_text, flags)
+
+    def switch_to_tab(self, tab_number):
+        """Switch to tab by number (1-9), or to last tab if 9 and more than 9 tabs exist"""
+        if tab_number == 9:
+            # Ctrl+9 goes to last tab
+            last_index = self.tab_widget.count() - 1
+            if last_index >= 0:
+                self.tab_widget.setCurrentIndex(last_index)
+        else:
+            # Ctrl+1 through Ctrl+8 go to specific tabs
+            tab_index = tab_number - 1
+            if 0 <= tab_index < self.tab_widget.count():
+                self.tab_widget.setCurrentIndex(tab_index)
+
     def setup_shortcuts(self):
         # Delete current file shortcut
         deleteFileShortcut = QShortcut(QKeySequence("Ctrl+Delete"), self)
         deleteFileShortcut.activated.connect(self.delete_file)
+
+        # Search shortcut
+        findShortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        findShortcut.activated.connect(self.show_search_bar)
 
         # Save shortcut
         saveShortcut = QShortcut(QKeySequence("Ctrl+S"), self)
@@ -457,6 +539,11 @@ class MainWindow(QMainWindow):
         
         underlineShortcut = QShortcut(QKeySequence("Ctrl+U"), self)
         underlineShortcut.activated.connect(self.toggle_underline)
+
+        # Tab navigation shortcuts (Ctrl+1 through Ctrl+9)
+        for i in range(1, 10):
+            shortcut = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            shortcut.activated.connect(lambda num=i: self.switch_to_tab(num))
 
     def new_tab(self):
         tab_name = f"New Document {self.tab_counter}"
