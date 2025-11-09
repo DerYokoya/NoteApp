@@ -156,30 +156,38 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.tab_widget)
 
-                # --- Search Bar ---
+        # --- Search Bar ---
         self.search_bar = QWidget()
         search_layout = QHBoxLayout(self.search_bar)
         search_layout.setContentsMargins(5, 5, 5, 5)
+        search_layout.setSpacing(5)
 
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Find...")
-        self.search_input.returnPressed.connect(self.find_next)
-        search_layout.addWidget(self.search_input)
+
+        self.search_counter = QLabel("0/0")
+        self.search_counter.setStyleSheet("color: gray;")
 
         self.find_next_btn = QPushButton("Next")
-        self.find_next_btn.clicked.connect(self.find_next)
-        search_layout.addWidget(self.find_next_btn)
-
         self.find_prev_btn = QPushButton("Prev")
-        self.find_prev_btn.clicked.connect(lambda: self.find_next(backward=True))
-        search_layout.addWidget(self.find_prev_btn)
-
         self.close_search_btn = QPushButton("X")
         self.close_search_btn.setFixedWidth(30)
         self.close_search_btn.clicked.connect(self.hide_search_bar)
+
+        # Add widgets to layout
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_counter)
+        search_layout.addWidget(self.find_prev_btn)
+        search_layout.addWidget(self.find_next_btn)
         search_layout.addWidget(self.close_search_btn)
 
+        # Connect signals
+        self.search_input.textChanged.connect(self.find_next)
+        self.search_input.returnPressed.connect(self.find_next)
+
+        self.search_bar.setLayout(search_layout)
         self.search_bar.setVisible(False)
+
         layout.addWidget(self.search_bar)
 
         self.setCentralWidget(central_widget)
@@ -468,18 +476,38 @@ class MainWindow(QMainWindow):
             return
 
         text_edit = current_tab.text_edit
-        search_text = self.search_input.text()
+        search_text = self.search_input.text().strip()
         if not search_text:
+            text_edit.setExtraSelections([])
+            self.update_search_counter(0, 0)
             return
 
-        # Create proper find flags
+        # Count total matches
+        document_text = text_edit.toPlainText()
+        occurrences = []
+        start = 0
+        while True:
+            start = document_text.find(search_text, start)
+            if start == -1:
+                break
+            occurrences.append(start)
+            start += len(search_text)
+
+        total = len(occurrences)
+        if total == 0:
+            text_edit.setExtraSelections([])
+            self.update_search_counter(0, 0)
+            return
+
+        # Find next occurrence
         flags = QTextDocument.FindFlag(0)
         if backward:
-            flags = QTextDocument.FindFlag.FindBackward
+            flags |= QTextDocument.FindFlag.FindBackward
 
         found = text_edit.find(search_text, flags)
+
+        # Wrap around
         if not found:
-            # Wrap around
             cursor = text_edit.textCursor()
             if backward:
                 cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -487,6 +515,93 @@ class MainWindow(QMainWindow):
                 cursor.movePosition(QTextCursor.MoveOperation.Start)
             text_edit.setTextCursor(cursor)
             text_edit.find(search_text, flags)
+
+        # Get current match index
+        current_pos = text_edit.textCursor().selectionStart()
+        current_index = 0
+        for i, pos in enumerate(occurrences):
+            if pos == current_pos:
+                current_index = i
+                break
+
+        # Highlight all with current one in orange
+        self.highlight_all_occurrences(search_text, current_index)
+
+        # Update counter label in search bar
+        self.update_search_counter(current_index + 1, total)
+
+    def update_search_counter(self, current, total):
+        """Update the small counter next to the search bar."""
+        if total == 0:
+            self.search_counter.setText("0/0")
+        else:
+            self.search_counter.setText(f"{current}/{total}")
+
+    def count_word_occurrences(self, term_to_search):
+        current_tab = self.get_current_tab()
+        if not current_tab:
+            return 0
+
+        text_edit = current_tab.text_edit
+        document_text = text_edit.toPlainText()
+
+        # Count case-insensitive matches
+        return document_text.lower().count(term_to_search.lower())
+
+    def highlight_all_occurrences(self, term, current_index=None):
+        """Highlight all occurrences and mark the current one in orange."""
+        current_tab = self.get_current_tab()
+        if not current_tab:
+            return
+
+        text_edit = current_tab.text_edit
+        cursor = text_edit.textCursor()
+        extraSelections = []
+
+        if not term:
+            text_edit.setExtraSelections([])
+            return
+
+        text = text_edit.toPlainText()
+        start = 0
+        match_index = 0
+
+        while True:
+            start = text.find(term, start)
+            if start == -1:
+                break
+
+            selection = QTextEdit.ExtraSelection()
+            cursor = QTextCursor(text_edit.document())
+            cursor.setPosition(start)
+            cursor.movePosition(QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.KeepAnchor, len(term))
+            selection.cursor = cursor
+
+            cursor.setPosition(start)
+            cursor.movePosition(QTextCursor.MoveOperation.Right,
+                                QTextCursor.MoveMode.KeepAnchor, len(term))
+            selection.cursor = cursor
+            extraSelections.append(selection)
+            start += len(term)
+            match_index += 1
+
+        text_edit.setExtraSelections(extraSelections)
+
+    def highlight_current_occurrence(self, term):
+        """Highlight only the current selected match in a stronger color."""
+        current_tab = self.get_current_tab()
+        if not current_tab:
+            return
+
+        text_edit = current_tab.text_edit
+        cursor = text_edit.textCursor()
+        selection = QTextEdit.ExtraSelection()
+        selection.cursor = cursor
+
+        # Keep previous highlights + current one
+        existing = text_edit.extraSelections()
+        existing.append(selection)
+        text_edit.setExtraSelections(existing)
 
     def switch_to_tab(self, tab_number):
         """Switch to tab by number (1-9), or to last tab if 9 and more than 9 tabs exist"""
