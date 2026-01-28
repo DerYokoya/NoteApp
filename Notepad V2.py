@@ -3,14 +3,16 @@ Rich Text Notepad
 A full-featured rich text editor with tabbed interface, search, and file management.
 """
 
+import sys
+
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCore import *
-import os
-import sys
+
 from pathlib import Path
 from typing import Optional, List
 
+import os
 
 # ============================================================================
 # Configuration & Constants
@@ -35,6 +37,8 @@ class AppConfig:
     # Default file extension
     DEFAULT_EXTENSION = ".html"
 
+    # Script's directory. This makes relative paths work
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 class StyleSheet:
     """Application-wide stylesheet"""
@@ -151,11 +155,10 @@ class StyleSheet:
             border-left: 1px solid #555555;
         }
 
-        /* Arrow itself */
         QComboBox::down-arrow, QFontComboBox::down-arrow {
             width: 14px;
             height: 14px;
-            image: url(down_arrow.png);
+            image: url(icons/down_arrow.svg);
         }
 
         /* Fallback arrow if image is missing */
