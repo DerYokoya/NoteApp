@@ -1,14 +1,6 @@
 """
-Rich Text Notepad - Professional Implementation
+Rich Text Notepad
 A full-featured rich text editor with tabbed interface, search, and file management.
-
-Architecture improvements:
-- Proper separation of concerns (Document model, UI components)
-- Qt's built-in document modified tracking
-- Robust error handling with user feedback
-- Non-blocking operations for large files
-- Persistent settings and recent files
-- Complete undo/redo integration
 """
 
 from PyQt6.QtGui import *
@@ -27,7 +19,7 @@ from typing import Optional, List
 class AppConfig:
     """Centralized application configuration"""
     APP_NAME = "Rich Text Notepad"
-    VERSION = "2.0.0"
+    VERSION = "3.0.0"
     MAX_FILE_SIZE_MB = 10
     MAX_RECENT_FILES = 10
     AUTOSAVE_INTERVAL_MS = 30000  # 30 seconds
@@ -65,10 +57,11 @@ class StyleSheet:
         }
         QPushButton {
             background-color: #4A4A4A;
-            padding: 8px 15px;
+            padding: 2px 8px;
             border-radius: 5px;
             min-height: 30px;
             border: 1px solid #555555;
+            margin: 0;
         }
         QPushButton:hover {
             background-color: #5A5A5A;
@@ -137,8 +130,75 @@ class StyleSheet:
         QLabel {
             color: #CCCCCC;
         }
-    """
+        QComboBox, QFontComboBox {
+            min-height: 36px;
+            padding: 2px 10px;
+            border: 1px solid #555555;
+            border-radius: 6px;
+            background-color: #3D3D3D;
+            color: #FFFFFF;
+            font-size: 16px;
+        }
 
+        /* Right-side drop-down area */
+        QComboBox::drop-down, QFontComboBox::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 30px;
+
+            /* IMPORTANT: don't draw a separate box */
+            background: transparent;
+            border-left: 1px solid #555555;
+        }
+
+        /* Arrow itself */
+        QComboBox::down-arrow, QFontComboBox::down-arrow {
+            width: 14px;
+            height: 14px;
+            image: url(down_arrow.png);
+        }
+
+        /* Fallback arrow if image is missing */
+        QComboBox::down-arrow:!has-image,
+        QFontComboBox::down-arrow:!has-image {
+            border: none;
+            background: none;
+        }
+
+        /* Popup list */
+        QComboBox QAbstractItemView,
+        QFontComboBox QAbstractItemView {
+            background-color: #404040;
+            border: 1px solid #555555;
+            color: #FFFFFF;
+            outline: none;
+            selection-background-color: #0078D4;
+        }
+
+        /* Items inside popup */
+        QComboBox QAbstractItemView::item,
+        QFontComboBox QAbstractItemView::item {
+            min-height: 35px;
+            padding-left: 10px;
+        }
+        
+        /* Individual items in the list */
+        QComboBox QAbstractItemView::item, QFontComboBox QAbstractItemView::item {
+            min-height: 35px;
+            padding-left: 10px;
+        }
+
+        QComboBox QAbstractItemView::item:selected, QFontComboBox QAbstractItemView::item:selected {
+            background-color: #0078D4;
+            color: white;
+        }
+        
+        QComboBox::drop-down, QFontComboBox::drop-down {
+            background: transparent;
+            border-left: none;
+        }
+        
+    """
 
 # ============================================================================
 # Document Model
@@ -616,6 +676,7 @@ class MainWindow(QMainWindow):
         # Font family
         self.font_combo = QFontComboBox()
         self.font_combo.setMaximumWidth(200)
+        self.font_combo.setFontFilters(QFontComboBox.FontFilter.ScalableFonts)
         self.font_combo.currentFontChanged.connect(self._change_font_family)
         self.format_toolbar.addWidget(self.font_combo)
         
@@ -709,7 +770,7 @@ class MainWindow(QMainWindow):
         
         # Clear formatting button
         self.clear_btn = QPushButton("Clear")
-        self.clear_btn.setFixedSize(60, 35)
+        self.clear_btn.setFixedSize(70, 35)
         self.clear_btn.setToolTip("Clear Formatting")
         self.clear_btn.clicked.connect(self.clear_formatting)
         self.format_toolbar.addWidget(self.clear_btn)
