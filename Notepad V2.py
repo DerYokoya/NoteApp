@@ -507,6 +507,28 @@ class SettingsManager:
             recent.remove(filepath)
         recent.insert(0, filepath)
         self.save_recent_files(recent[:AppConfig.MAX_RECENT_FILES])
+    
+    def save_open_tabs(self, tabs: List[str], active_index: int):
+        """Save list of currently open tabs"""
+        # Keep only existing files (filter out empty strings for untitled tabs)
+        existing_tabs = [f for f in tabs if f and Path(f).exists()]
+        self.settings.setValue("open_tabs", existing_tabs)
+        self.settings.setValue("active_tab_index", active_index)
+    
+    def get_open_tabs(self) -> tuple[List[str], int]:
+        """Get list of previously open tabs and active index"""
+        tabs = self.settings.value("open_tabs", [])
+        if isinstance(tabs, str):
+            tabs = [tabs] if tabs else []
+        # Filter to only existing files
+        existing_tabs = [f for f in tabs if Path(f).exists()]
+        active_index = self.settings.value("active_tab_index", 0, type=int)
+        return existing_tabs, active_index
+    
+    def clear_open_tabs(self):
+        """Clear the saved open tabs"""
+        self.settings.remove("open_tabs")
+        self.settings.remove("active_tab_index")
 
 
 # ============================================================================
@@ -522,14 +544,15 @@ class MainWindow(QMainWindow):
         self.tabs: List[DocumentTab] = []
         self.tab_counter = 1
         self.settings_manager = SettingsManager()
+        self._is_restoring_session = False
         
         self._setup_ui()
         self._setup_shortcuts()
         self._setup_timers()
         self._restore_settings()
         
-        # Create first tab
-        self.new_tab()
+        # Restore previous session or create first tab
+        self._restore_session()
     
     def _setup_ui(self):
         """Initialize the user interface"""
@@ -839,6 +862,39 @@ class MainWindow(QMainWindow):
                 (screen.height() - self.height()) // 2
             )
     
+    def _restore_session(self):
+        """Restore previously open tabs from last session"""
+        self._is_restoring_session = True
+        open_tabs, active_index = self.settings_manager.get_open_tabs()
+        
+        if open_tabs:
+            # Restore each tab
+            for filepath in open_tabs:
+                try:
+                    self.open_file(filepath)
+                except Exception as e:
+                    print(f"Failed to restore tab: {filepath} - {e}")
+            
+            # Set active tab
+            if 0 <= active_index < self.tab_widget.count():
+                self.tab_widget.setCurrentIndex(active_index)
+        
+        # If no tabs were restored, create a new one
+        if self.tab_widget.count() == 0:
+            self.new_tab()
+        
+        self._is_restoring_session = False
+    
+    def _save_session(self):
+        """Save currently open tabs for next session"""
+        open_tabs = []
+        for tab in self.tabs:
+            if tab.current_file:
+                open_tabs.append(str(tab.current_file))
+        
+        active_index = self.tab_widget.currentIndex()
+        self.settings_manager.save_open_tabs(open_tabs, active_index)
+    
     # ========================================================================
     # Tab Management
     # ========================================================================
@@ -881,6 +937,10 @@ class MainWindow(QMainWindow):
         # Remove tab
         self.tab_widget.removeTab(index)
         self.tabs.pop(index)
+        
+        # Save session after closing tab
+        if not self._is_restoring_session:
+            self._save_session()
     
     def close_current_tab(self):
         """Close the currently active tab"""
@@ -896,6 +956,10 @@ class MainWindow(QMainWindow):
             self._update_format_buttons()
             self._update_status_bar()
             doc_tab.text_edit.setFocus()
+            
+            # Save session when switching tabs (to remember active tab)
+            if not self._is_restoring_session:
+                self._save_session()
     
     def _switch_to_tab(self, tab_number: int):
         """Switch to tab by number (1-9)"""
@@ -987,6 +1051,10 @@ class MainWindow(QMainWindow):
             self.settings_manager.add_recent_file(str(filepath))
             self._update_recent_files_menu()
             
+            # Save session after opening file
+            if not self._is_restoring_session:
+                self._save_session()
+            
             self.statusBar().showMessage(f"Opened: {filepath.name}", 3000)
             
         except Exception as e:
@@ -1052,6 +1120,9 @@ class MainWindow(QMainWindow):
             self.settings_manager.add_recent_file(str(doc_tab.current_file))
             self._update_recent_files_menu()
             
+            # Save session after saving file (in case file path changed)
+            self._save_session()
+            
             self.statusBar().showMessage(f"Saved: {doc_tab.current_file.name}", 3000)
             return True
             
@@ -1094,6 +1165,9 @@ class MainWindow(QMainWindow):
             current_index = self.tab_widget.currentIndex()
             self.tab_widget.removeTab(current_index)
             self.tabs.pop(current_index)
+            
+            # Save session after deleting file
+            self._save_session()
             
         except Exception as e:
             QMessageBox.critical(
@@ -1334,10 +1408,13 @@ class MainWindow(QMainWindow):
         self.strike_btn.setChecked(fmt.fontStrikeOut())
         
         # Update font controls
-        if fmt.font().family():
-            self.font_combo.setCurrentFont(fmt.font())
-        if fmt.fontPointSize() > 0:
-            self.size_combo.setCurrentText(str(int(fmt.fontPointSize())))
+        self.size_combo.blockSignals(True)
+
+        ps = fmt.fontPointSize() # Gets the font size from the QTextCharFormat
+        if ps and ps > 0: # the first part (if ps) is to filter out for when ps is None
+            self.size_combo.setCurrentText(str(int(ps)))
+
+        self.size_combo.blockSignals(False)
         
         # Unblock signals
         self.bold_btn.blockSignals(False)
@@ -1546,11 +1623,12 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
         
-        # Save window geometry
+        # Save window geometry and session
         self.settings_manager.save_window_geometry(
             self.saveGeometry(),
             self.saveState()
         )
+        self._save_session()
         
         event.accept()
     
