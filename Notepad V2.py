@@ -809,7 +809,12 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self.close_tab)
         self.tab_widget.currentChanged.connect(self._tab_changed)
         
-        # Add + button for new tabs
+        # Add + button for new tabs with container for centering
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.setContentsMargins(5, 0, 5, 5)
+        button_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
         plus_button = QToolButton()
         plus_button.setText("+")
         plus_button.setStyleSheet("""
@@ -829,7 +834,9 @@ class MainWindow(QMainWindow):
         plus_button.setFixedSize(25, 25)
         plus_button.setToolTip("New Tab (Ctrl+N)")
         plus_button.clicked.connect(self.new_tab)
-        self.tab_widget.setCornerWidget(plus_button, Qt.Corner.TopRightCorner)
+        
+        button_layout.addWidget(plus_button)
+        self.tab_widget.setCornerWidget(button_container, Qt.Corner.TopRightCorner)
     
     def _setup_shortcuts(self):
         """Setup keyboard shortcuts"""
