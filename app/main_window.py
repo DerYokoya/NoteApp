@@ -157,6 +157,25 @@ class MainWindow(QMainWindow):
         
         format_menu.addSeparator()
         
+        bullet_list_action = QAction("&Bullet List", self)
+        bullet_list_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        bullet_list_action.triggered.connect(self.toggle_bullet_list)
+        format_menu.addAction(bullet_list_action)
+        
+        numbered_list_action = QAction("&Numbered List", self)
+        numbered_list_action.setShortcut(QKeySequence("Ctrl+Shift+N"))
+        numbered_list_action.triggered.connect(self.toggle_numbered_list)
+        format_menu.addAction(numbered_list_action)
+        
+        format_menu.addSeparator()
+        
+        table_action = QAction("Insert &Table...", self)
+        table_action.setShortcut(QKeySequence("Ctrl+T"))
+        table_action.triggered.connect(self.insert_table)
+        format_menu.addAction(table_action)
+        
+        format_menu.addSeparator()
+        
         clear_format_action = QAction("&Clear Formatting", self)
         clear_format_action.setShortcut(QKeySequence("Ctrl+\\"))
         clear_format_action.triggered.connect(self.clear_formatting)
@@ -252,6 +271,30 @@ class MainWindow(QMainWindow):
         self.link_btn.setToolTip("Insert Link")
         self.link_btn.clicked.connect(self.add_link)
         self.format_toolbar.addWidget(self.link_btn)
+        
+        self.format_toolbar.addSeparator()
+        
+        # List buttons
+        self.bullet_list_btn = QPushButton("• List")
+        self.bullet_list_btn.setFixedSize(60, 35)
+        self.bullet_list_btn.setToolTip("Bullet List (Ctrl+Shift+L)")
+        self.bullet_list_btn.clicked.connect(self.toggle_bullet_list)
+        self.format_toolbar.addWidget(self.bullet_list_btn)
+        
+        self.numbered_list_btn = QPushButton("1. List")
+        self.numbered_list_btn.setFixedSize(60, 35)
+        self.numbered_list_btn.setToolTip("Numbered List (Ctrl+Shift+N)")
+        self.numbered_list_btn.clicked.connect(self.toggle_numbered_list)
+        self.format_toolbar.addWidget(self.numbered_list_btn)
+        
+        # Table button
+        self.table_btn = QPushButton("⊞ Table")
+        self.table_btn.setFixedSize(65, 35)
+        self.table_btn.setToolTip("Insert Table (Ctrl+T)")
+        self.table_btn.clicked.connect(self.insert_table)
+        self.format_toolbar.addWidget(self.table_btn)
+        
+        self.format_toolbar.addSeparator()
         
         self.clear_btn = QPushButton("Clear")
         self.clear_btn.setFixedSize(70, 35)
@@ -776,6 +819,126 @@ class MainWindow(QMainWindow):
                 current_tab.text_edit.setCurrentCharFormat(QTextCharFormat())
             
             current_tab.text_edit.setFocus()
+    
+    def toggle_bullet_list(self):
+        """Toggle bullet list formatting"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        
+        # Check current list style
+        current_list = cursor.currentList()
+        
+        if current_list and current_list.format().style() == QTextListFormat.Style.ListDisc:
+            # Remove list formatting
+            block_fmt = cursor.blockFormat()
+            block_fmt.setIndent(0)
+            cursor.setBlockFormat(block_fmt)
+            
+            # Remove from list
+            list_fmt = current_list.format()
+            list_fmt.setIndent(list_fmt.indent() - 1)
+            current_list.setFormat(list_fmt)
+            current_list.remove(cursor.block())
+        else:
+            # Apply bullet list
+            list_fmt = QTextListFormat()
+            list_fmt.setStyle(QTextListFormat.Style.ListDisc)
+            cursor.createList(list_fmt)
+        
+        current_tab.text_edit.setFocus()
+    
+    def toggle_numbered_list(self):
+        """Toggle numbered list formatting"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        
+        # Check current list style
+        current_list = cursor.currentList()
+        
+        if current_list and current_list.format().style() == QTextListFormat.Style.ListDecimal:
+            # Remove list formatting
+            block_fmt = cursor.blockFormat()
+            block_fmt.setIndent(0)
+            cursor.setBlockFormat(block_fmt)
+            
+            # Remove from list
+            list_fmt = current_list.format()
+            list_fmt.setIndent(list_fmt.indent() - 1)
+            current_list.setFormat(list_fmt)
+            current_list.remove(cursor.block())
+        else:
+            # Apply numbered list
+            list_fmt = QTextListFormat()
+            list_fmt.setStyle(QTextListFormat.Style.ListDecimal)
+            cursor.createList(list_fmt)
+        
+        current_tab.text_edit.setFocus()
+    
+    def insert_table(self):
+        """Insert a table into the document"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        # Create dialog to get table dimensions
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Insert Table")
+        dialog.setModal(True)
+        
+        layout = QVBoxLayout()
+        
+        # Rows input
+        row_layout = QHBoxLayout()
+        row_layout.addWidget(QLabel("Rows:"))
+        rows_spin = QSpinBox()
+        rows_spin.setRange(1, 50)
+        rows_spin.setValue(3)
+        row_layout.addWidget(rows_spin)
+        layout.addLayout(row_layout)
+        
+        # Columns input
+        col_layout = QHBoxLayout()
+        col_layout.addWidget(QLabel("Columns:"))
+        cols_spin = QSpinBox()
+        cols_spin.setRange(1, 20)
+        cols_spin.setValue(3)
+        col_layout.addWidget(cols_spin)
+        layout.addLayout(col_layout)
+        
+        # Buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | 
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.setLayout(layout)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            rows = rows_spin.value()
+            cols = cols_spin.value()
+            
+            cursor = current_tab.text_edit.textCursor()
+            
+            # Create table format
+            table_fmt = QTextTableFormat()
+            table_fmt.setBorder(1)
+            table_fmt.setCellPadding(5)
+            table_fmt.setCellSpacing(0)
+            table_fmt.setWidth(QTextLength(QTextLength.Type.PercentageLength, 100))
+            
+            # Insert the table
+            cursor.insertTable(rows, cols, table_fmt)
+        
+        current_tab.text_edit.setFocus()
     
     def _change_font_family(self, font: QFont):
         """Change font family"""
