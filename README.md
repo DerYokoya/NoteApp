@@ -13,7 +13,8 @@ Designed for distraction-free writing with tabs, instant search, and local file 
 - 🧪 Unit-tested core logic
 
 ## Screenshots
-_(screenshots)_
+![Main window](screenshots/screenshot_main.png)
+![Search bar](screenshots/screenshot_search.png)
 
 ## Installation
 
