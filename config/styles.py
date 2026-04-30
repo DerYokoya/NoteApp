@@ -1,7 +1,12 @@
 # ============================================================================
 # Styles
 # ============================================================================
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+ARROW_PATH = (BASE_DIR / "icons" / "down_arrow.svg").as_posix()
+print(ARROW_PATH)
+print(Path(ARROW_PATH).exists())
 class StyleSheet:
     """Application-wide stylesheet"""
     DARK_THEME = """
@@ -97,70 +102,51 @@ class StyleSheet:
             color: #CCCCCC;
         }
         QComboBox, QFontComboBox {
-            min-height: 36px;
-            padding: 2px 10px;
+            min-height: 30px;
+            padding: 5px 30px 5px 10px; /* space for arrow */
             border: 1px solid #555555;
-            border-radius: 6px;
+            border-radius: 5px;
             background-color: #3D3D3D;
-            color: #FFFFFF;
-            font-size: 16px;
-        }
-
-        /* Right-side drop-down area */
-        QComboBox::drop-down, QFontComboBox::drop-down {
-            subcontrol-origin: padding;
-            subcontrol-position: top right;
-            width: 30px;
-
-            /* IMPORTANT: don't draw a separate box */
-            background: transparent;
-            border-left: 1px solid #555555;
-        }
-
-        QComboBox::down-arrow, QFontComboBox::down-arrow {
-            width: 14px;
-            height: 14px;
-            image: url(NoteApp/icons/down_arrow.svg);
-        }
-
-        /* Fallback arrow if image is missing */
-        QComboBox::down-arrow:!has-image,
-        QFontComboBox::down-arrow:!has-image {
-            border: none;
-            background: none;
-        }
-
-        /* Popup list */
-        QComboBox QAbstractItemView,
-        QFontComboBox QAbstractItemView {
-            background-color: #404040;
-            border: 1px solid #555555;
-            color: #FFFFFF;
-            outline: none;
             selection-background-color: #0078D4;
         }
 
-        /* Items inside popup */
-        QComboBox QAbstractItemView::item,
-        QFontComboBox QAbstractItemView::item {
-            min-height: 35px;
-            padding-left: 10px;
-        }
-        
-        /* Individual items in the list */
-        QComboBox QAbstractItemView::item, QFontComboBox QAbstractItemView::item {
-            min-height: 35px;
-            padding-left: 10px;
+        QComboBox:hover {
+            border: 1px solid #666666;
         }
 
-        QComboBox QAbstractItemView::item:selected, QFontComboBox QAbstractItemView::item:selected {
-            background-color: #0078D4;
-            color: white;
+        QComboBox:focus {
+            border: 1px solid #0078D4;
         }
-        
-        QComboBox::drop-down, QFontComboBox::drop-down {
-            background: transparent;
-            border-left: none;
+
+        /* The dropdown button area */
+        QComboBox::drop-down {
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 25px;
+            border-left: 1px solid #555555;
+            background-color: #404040;
+            border-top-right-radius: 5px;
+            border-bottom-right-radius: 5px;
         }
-        
+
+        /* The arrow itself */
+        QComboBox::down-arrow {
+            image: url(""" + ARROW_PATH + """);
+            width: 12px;
+            height: 12px;
+        }
+
+        /* When pressed */
+        QComboBox::down-arrow:on {
+            top: 1px;
+        }
+
+        /* The popup list */
+        QComboBox QAbstractItemView {
+            background-color: #2D2D2D;
+            border: 1px solid #555555;
+            selection-background-color: #0078D4;
+            outline: none;
+            padding: 5px;
+        }
     """
