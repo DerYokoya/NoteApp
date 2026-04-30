@@ -12,6 +12,9 @@ Designed for distraction-free writing with tabs, instant search, and local file 
 - ⚙️ Persistent user settings
 - 🧪 Unit-tested core logic
 
+## Showcase
+https://github.com/user-attachments/assets/2838af1d-1bfd-46d8-8056-4906c39c8ab4
+
 ## Screenshots
 ![Main window](screenshots/screenshot_main.png)
 ![Search bar](screenshots/screenshot_search.png)
