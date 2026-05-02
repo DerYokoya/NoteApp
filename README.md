@@ -4,7 +4,7 @@ A professional, feature-rich desktop note-taking application built with Python a
 
 Designed as a real-world alternative to Word and Notepad++, with full rich text editing, tables, images, and more.
 
-## Video showcase
+## Video Showcase
 
 https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
 
