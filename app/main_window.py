@@ -234,8 +234,8 @@ class MainWindow(QMainWindow):
         """)
 
         outer = QVBoxLayout(self.format_toolbar)
-        outer.setContentsMargins(6, 4, 6, 4)
-        outer.setSpacing(3)
+        outer.setContentsMargins(6, 6, 6, 6)
+        outer.setSpacing(8)  # More spacing between rows
 
         row1 = QHBoxLayout()
         row1.setSpacing(2)
@@ -262,18 +262,44 @@ class MainWindow(QMainWindow):
 
         row1.addSpacing(4)
 
-        # Font size — editable combo
+        # Font size — editable combo with better visibility
         self.size_combo = QComboBox()
         self.size_combo.setEditable(True)
-        self.size_combo.setFixedWidth(58)
+        self.size_combo.setFixedWidth(80)  # Increased from 58
         self.size_combo.setFixedHeight(28)
         self.size_combo.addItems(['8','9','10','11','12','14','16','18','20','24','28','36','48','72'])
         self.size_combo.setCurrentText('12')
+        # Make font size text larger and more readable
+        sz_font = QFont()
+        sz_font.setPointSize(10)
+        self.size_combo.setFont(sz_font)
+        if self.size_combo.lineEdit():
+            self.size_combo.lineEdit().setFont(sz_font)
         self.size_combo.currentTextChanged.connect(self._change_font_size)
         self.size_combo.lineEdit().returnPressed.connect(
             lambda: self._change_font_size(self.size_combo.currentText())
         )
         row1.addWidget(self.size_combo)
+
+        sep(row1)
+
+        # Text Styles dropdown
+        self.style_combo = QComboBox()
+        self.style_combo.setFixedWidth(130)
+        self.style_combo.setFixedHeight(28)
+        self.style_combo.addItems([
+            'Normal',
+            'Title',
+            'Subtitle',
+            'Heading 1',
+            'Heading 2',
+            'Heading 3',
+            'Heading 4',
+            'Heading 5',
+            'Heading 6',
+        ])
+        self.style_combo.currentTextChanged.connect(self._apply_text_style)
+        row1.addWidget(self.style_combo)
 
         sep(row1)
 
@@ -398,6 +424,18 @@ class MainWindow(QMainWindow):
         self.outdent_btn = self._make_tool_btn("← ≡", "Decrease Indent (Shift+Tab)", width=38)
         self.outdent_btn.clicked.connect(self._decrease_indent)
         row2.addWidget(self.outdent_btn)
+
+        sep(row2)
+
+        # Horizontal line
+        self.hr_btn = self._make_tool_btn("─", "Insert Horizontal Line", width=32)
+        self.hr_btn.clicked.connect(self._insert_horizontal_line)
+        row2.addWidget(self.hr_btn)
+
+        # Image insert
+        self.image_btn = self._make_tool_btn("🖼", "Insert Image", width=38)
+        self.image_btn.clicked.connect(self._insert_image)
+        row2.addWidget(self.image_btn)
 
         sep(row2)
 
@@ -954,6 +992,175 @@ class MainWindow(QMainWindow):
             
             current_tab.text_edit.setFocus()
     
+    def _apply_text_style(self, style_name: str):
+        """Apply predefined text style (Normal, Title, Heading, etc)"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        fmt = QTextCharFormat()
+        block_fmt = cursor.blockFormat()
+        
+        # Define styles
+        styles = {
+            'Normal': {'size': 12, 'bold': False, 'italic': False},
+            'Title': {'size': 28, 'bold': True, 'italic': False},
+            'Subtitle': {'size': 18, 'bold': True, 'italic': True},
+            'Heading 1': {'size': 24, 'bold': True, 'italic': False},
+            'Heading 2': {'size': 20, 'bold': True, 'italic': False},
+            'Heading 3': {'size': 18, 'bold': True, 'italic': False},
+            'Heading 4': {'size': 16, 'bold': True, 'italic': False},
+            'Heading 5': {'size': 14, 'bold': True, 'italic': False},
+            'Heading 6': {'size': 12, 'bold': True, 'italic': False},
+        }
+        
+        if style_name in styles:
+            style = styles[style_name]
+            fmt.setFontPointSize(style['size'])
+            fmt.setFontWeight(QFont.Weight.Bold if style['bold'] else QFont.Weight.Normal)
+            fmt.setFontItalic(style['italic'])
+            
+            # Add spacing for headings
+            if style_name.startswith('Heading') or style_name in ('Title', 'Subtitle'):
+                block_fmt.setTopMargin(12)
+                block_fmt.setBottomMargin(12)
+            else:
+                block_fmt.setTopMargin(0)
+                block_fmt.setBottomMargin(0)
+            
+            cursor.setBlockFormat(block_fmt)
+            cursor.setCharFormat(fmt)
+            current_tab.text_edit.setTextCursor(cursor)
+        
+        current_tab.text_edit.setFocus()
+    
+    def _insert_horizontal_line(self):
+        """Insert a horizontal line separator"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        cursor.insertText('\n')
+        
+        # Create a block with a bottom border to simulate a horizontal line
+        block_fmt = cursor.blockFormat()
+        
+        # Use a frame or table line format - insert a line of dashes
+        cursor.insertText('─' * 60)
+        cursor.insertText('\n')
+        
+        current_tab.text_edit.setFocus()
+    
+    def _insert_image(self):
+        """Insert an image into the document with resize support"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Insert Image",
+            "",
+            "Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)"
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            # Load and verify the image
+            image = QImage(file_path)
+            if image.isNull():
+                QMessageBox.warning(self, "Error", "Could not load image file")
+                return
+            
+            # Get original dimensions
+            orig_width = image.width()
+            orig_height = image.height()
+            
+            # Scale image to reasonable size (max 500px width)
+            display_width = min(orig_width, 500)
+            display_height = int((display_width / orig_width) * orig_height) if orig_width > 0 else orig_height
+            
+            # For now, insert as regular image and show resize dialog
+            cursor = current_tab.text_edit.textCursor()
+            
+            # Create a dialog for image size
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Insert Image")
+            layout = QFormLayout(dialog)
+            
+            width_spin = QSpinBox()
+            width_spin.setRange(50, 800)
+            width_spin.setValue(display_width)
+            width_spin.setSuffix(" px")
+            layout.addRow("Width:", width_spin)
+            
+            height_spin = QSpinBox()
+            height_spin.setRange(50, 800)
+            height_spin.setValue(display_height)
+            height_spin.setSuffix(" px")
+            layout.addRow("Height:", height_spin)
+            
+            # Maintain aspect ratio checkbox
+            aspect_ratio_cb = QCheckBox()
+            aspect_ratio_cb.setChecked(True)
+            layout.addRow("Maintain Aspect Ratio:", aspect_ratio_cb)
+            
+            # Buttons
+            buttons = QDialogButtonBox(
+                QDialogButtonBox.StandardButton.Ok |
+                QDialogButtonBox.StandardButton.Cancel
+            )
+            buttons.accepted.connect(dialog.accept)
+            buttons.rejected.connect(dialog.reject)
+            layout.addRow(buttons)
+            
+            # Connect signals for aspect ratio
+            def on_width_changed(w):
+                if aspect_ratio_cb.isChecked() and orig_width > 0:
+                    new_h = int((w / orig_width) * orig_height)
+                    height_spin.blockSignals(True)
+                    height_spin.setValue(new_h)
+                    height_spin.blockSignals(False)
+            
+            def on_height_changed(h):
+                if aspect_ratio_cb.isChecked() and orig_height > 0:
+                    new_w = int((h / orig_height) * orig_width)
+                    width_spin.blockSignals(True)
+                    width_spin.setValue(new_w)
+                    width_spin.blockSignals(False)
+            
+            width_spin.valueChanged.connect(on_width_changed)
+            height_spin.valueChanged.connect(on_height_changed)
+            
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                final_width = width_spin.value()
+                final_height = height_spin.value()
+                
+                # Scale the image to the chosen size
+                scaled_image = image.scaled(
+                    final_width,
+                    final_height,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                
+                # Insert the scaled image
+                cursor.insertImage(scaled_image, "image")
+                cursor.insertText('\n')  # Add newline after image
+                current_tab.text_edit.setTextCursor(cursor)
+                
+                QMessageBox.information(self, "Image Inserted", 
+                                        f"Image inserted: {final_width}×{final_height}px\n\n"
+                                        "Tip: Right-click on the image to resize it further.")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to insert image: {str(e)}")
+        
+        current_tab.text_edit.setFocus()
+    
     def toggle_bullet_list(self):
         """Toggle bullet list formatting"""
         current_tab = self._get_current_tab()
@@ -1140,6 +1347,13 @@ class MainWindow(QMainWindow):
         align_menu.addAction("Align Right",   lambda: self.set_alignment(Qt.AlignmentFlag.AlignRight))
         align_menu.addAction("Justify",       lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
         
+        # Image resize - check if cursor is at an image
+        block_fmt = cursor.blockFormat()
+        if block_fmt.property(1024) is not None:  # Check for image content
+            menu.addSeparator()
+            image_resize = menu.addAction("Resize Image…")
+            image_resize.triggered.connect(lambda: self._resize_image_at_cursor(text_edit))
+        
         menu.exec(text_edit.mapToGlobal(pos))
     
     def _open_table_props_for(self, table: QTextTable, text_edit: QTextEdit):
@@ -1147,6 +1361,96 @@ class MainWindow(QMainWindow):
         dlg = TablePropertiesDialog(table, self)
         dlg.exec()
         text_edit.setFocus()
+    
+    def _resize_image_at_cursor(self, text_edit: QTextEdit):
+        """Show dialog to resize image at cursor position"""
+        cursor = text_edit.textCursor()
+        char_fmt = cursor.charFormat()
+        
+        # Get the image resource name
+        image_name = char_fmt.stringProperty(QTextFormat.Property.ImageName)
+        if not image_name:
+            QMessageBox.information(self, "Resize Image", "No image found at cursor position.")
+            return
+        
+        # Get the document's image resource
+        doc = text_edit.document()
+        image = doc.resource(QTextDocument.ResourceType.ImageResource, QUrl(image_name))
+        
+        if image.isNull() or not isinstance(image, QImage):
+            QMessageBox.warning(self, "Error", "Could not access image data.")
+            return
+        
+        # Show resize dialog
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Resize Image")
+        layout = QFormLayout(dialog)
+        
+        width_spin = QSpinBox()
+        width_spin.setRange(50, 800)
+        width_spin.setValue(image.width())
+        width_spin.setSuffix(" px")
+        layout.addRow("Width:", width_spin)
+        
+        height_spin = QSpinBox()
+        height_spin.setRange(50, 800)
+        height_spin.setValue(image.height())
+        height_spin.setSuffix(" px")
+        layout.addRow("Height:", height_spin)
+        
+        aspect_ratio_cb = QCheckBox()
+        aspect_ratio_cb.setChecked(True)
+        layout.addRow("Maintain Aspect Ratio:", aspect_ratio_cb)
+        
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok |
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        
+        orig_width = image.width()
+        orig_height = image.height()
+        
+        def on_width_changed(w):
+            if aspect_ratio_cb.isChecked() and orig_width > 0:
+                new_h = int((w / orig_width) * orig_height)
+                height_spin.blockSignals(True)
+                height_spin.setValue(new_h)
+                height_spin.blockSignals(False)
+        
+        def on_height_changed(h):
+            if aspect_ratio_cb.isChecked() and orig_height > 0:
+                new_w = int((h / orig_height) * orig_width)
+                width_spin.blockSignals(True)
+                width_spin.setValue(new_w)
+                width_spin.blockSignals(False)
+        
+        width_spin.valueChanged.connect(on_width_changed)
+        height_spin.valueChanged.connect(on_height_changed)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_width = width_spin.value()
+            new_height = height_spin.value()
+            
+            # Scale the image
+            scaled = image.scaled(
+                new_width,
+                new_height,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            
+            # Update the document resource
+            doc.addResource(QTextDocument.ResourceType.ImageResource, QUrl(image_name), scaled)
+            
+            # Refresh the display
+            text_edit.updateGeometry()
+            text_edit.viewport().update()
+            
+            QMessageBox.information(self, "Image Resized", 
+                                    f"Image resized to {new_width}×{new_height}px")
     
     def _change_font_family(self, font: QFont):
         """Change font family"""
@@ -1327,10 +1631,14 @@ class MainWindow(QMainWindow):
             selection.cursor = cursor
             
             if start_pos == current_pos:
+                # Current match - use orange with dark text
                 selection.format.setBackground(QColor("#FF8C00"))
+                selection.format.setForeground(QColor("#000000"))
                 current_match_idx = i
             else:
-                selection.format.setBackground(QColor("#FFD700"))
+                # Other matches - use darker yellow/gold with dark text
+                selection.format.setBackground(QColor("#CCAA00"))
+                selection.format.setForeground(QColor("#000000"))
             
             extra_selections.append(selection)
         

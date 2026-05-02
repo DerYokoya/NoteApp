@@ -18,16 +18,14 @@ class SearchBar(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
         
-      # Search input
+        # Search input
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Find...")
-
-        # Valid font to avoid the QFont warning
+        self.search_input.setFixedHeight(28)
+        # Use normal font size, not 25pt
         font = QFont()
-        font.setPointSize(25)
+        font.setPointSize(10)
         self.search_input.setFont(font)
-
-        # Enable clear button
         self.search_input.setClearButtonEnabled(True)
 
         # Counter label
@@ -37,10 +35,12 @@ class SearchBar(QWidget):
         # Navigation buttons
         self.prev_btn = QPushButton("↑")
         self.prev_btn.setFixedWidth(35)
+        self.prev_btn.setFixedHeight(28)
         self.prev_btn.setToolTip("Previous (Shift+F3)")
         
         self.next_btn = QPushButton("↓")
         self.next_btn.setFixedWidth(35)
+        self.next_btn.setFixedHeight(28)
         self.next_btn.setToolTip("Next (F3)")
         
         # Case sensitive checkbox
@@ -50,6 +50,7 @@ class SearchBar(QWidget):
         # Close button
         self.close_btn = QPushButton("×")
         self.close_btn.setFixedWidth(35)
+        self.close_btn.setFixedHeight(28)
         self.close_btn.setToolTip("Close (Esc)")
         
         # Add to layout

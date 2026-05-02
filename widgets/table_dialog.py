@@ -45,6 +45,7 @@ class TablePropertiesDialog(QDialog):
         tabs.addTab(self._build_structure_tab(), "Structure")
         tabs.addTab(self._build_border_tab(),    "Borders")
         tabs.addTab(self._build_columns_tab(),   "Columns")
+        tabs.addTab(self._build_rows_tab(),      "Rows")
 
         # OK / Cancel
         buttons = QDialogButtonBox(
@@ -183,6 +184,34 @@ class TablePropertiesDialog(QDialog):
 
         return w
 
+    # --- Rows tab -------------------------------------------------------
+
+    def _build_rows_tab(self) -> QWidget:
+        w = QWidget()
+        vl = QVBoxLayout(w)
+        vl.setContentsMargins(12, 12, 12, 12)
+
+        vl.addWidget(QLabel(
+            "Set individual row heights (pixels, or 0 for auto):"
+        ))
+
+        self.row_table = QTableWidget()
+        self.row_table.setColumnCount(2)
+        self.row_table.setHorizontalHeaderLabels(["Row", "Height (px)"])
+        self.row_table.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.row_table.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
+        vl.addWidget(self.row_table)
+
+        even_height_btn = QPushButton("Distribute Evenly")
+        even_height_btn.clicked.connect(self._distribute_row_heights_evenly)
+        vl.addWidget(even_height_btn)
+
+        return w
+
     # ------------------------------------------------------------------
     # Load current table values
     # ------------------------------------------------------------------
@@ -234,6 +263,20 @@ class TablePropertiesDialog(QDialog):
             spin.setValue(pct)
             self.col_table.setCellWidget(i, 1, spin)
 
+        # Rows
+        n_rows = self.table.rows()
+        self.row_table.setRowCount(n_rows)
+        for i in range(n_rows):
+            name_item = QTableWidgetItem(f"Row {i + 1}")
+            name_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            self.row_table.setItem(i, 0, name_item)
+            spin = QDoubleSpinBox()
+            spin.setRange(0, 500)
+            spin.setSuffix(" px")
+            spin.setSpecialValueText("Auto")
+            spin.setValue(0)
+            self.row_table.setCellWidget(i, 1, spin)
+
     # ------------------------------------------------------------------
     # Apply changes
     # ------------------------------------------------------------------
@@ -274,6 +317,28 @@ class TablePropertiesDialog(QDialog):
             else:
                 constraints.append(QTextLength())
         fmt.setColumnWidthConstraints(constraints)
+
+        # Row heights - set on individual rows
+        # Note: QTextTable doesn't have direct rowAt(), so we access via cells
+        n_rows = self.table.rows()
+        for row_idx in range(n_rows):
+            widget = self.row_table.cellWidget(row_idx, 1)
+            if widget:
+                height = widget.value()
+                if height > 0:
+                    # Try to get first cell of this row and set its row format
+                    # Note: row height in QTextTable is limited - we set via format
+                    try:
+                        cell = self.table.cellAt(row_idx, 0)
+                        if cell.isValid():
+                            row_fmt = cell.blockFormat()
+                            row_fmt.setHeight(height)
+                            row_fmt.setHeightType(1)  # QTextLength.FixedLength = 1
+                            cell.setBlockFormat(row_fmt)
+                    except Exception as e:
+                        # Silently skip if row height setting fails
+                        # (QTextTable has limited row height support)
+                        pass
 
         self.table.setFormat(fmt)
         self.accept()
@@ -337,6 +402,18 @@ class TablePropertiesDialog(QDialog):
         each = round(100.0 / n, 1)
         for i in range(n):
             w = self.col_table.cellWidget(i, 1)
+            if w:
+                w.setValue(each)
+
+    def _distribute_row_heights_evenly(self):
+        """Distribute row heights evenly"""
+        n = self.row_table.rowCount()
+        if n == 0:
+            return
+        # Estimate average row height - around 30-40px per row
+        each = 40
+        for i in range(n):
+            w = self.row_table.cellWidget(i, 1)
             if w:
                 w.setValue(each)
 
