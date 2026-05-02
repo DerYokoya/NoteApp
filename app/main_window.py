@@ -12,7 +12,6 @@ from services.settings_manager import SettingsManager
 from widgets.search_bar import SearchBar
 from widgets.status_bar import StatusBarWidget
 from widgets.table_dialog import TablePropertiesDialog
-from widgets.text_orientation_dialog import TextOrientationDialog
 
 
 class MainWindow(QMainWindow):
@@ -159,6 +158,28 @@ class MainWindow(QMainWindow):
         
         format_menu.addSeparator()
         
+        align_left_action = QAction("Align &Left", self)
+        align_left_action.setShortcut(QKeySequence("Ctrl+L"))
+        align_left_action.triggered.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignLeft))
+        format_menu.addAction(align_left_action)
+        
+        align_center_action = QAction("&Center", self)
+        align_center_action.setShortcut(QKeySequence("Ctrl+E"))
+        align_center_action.triggered.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignHCenter))
+        format_menu.addAction(align_center_action)
+        
+        align_right_action = QAction("Align &Right", self)
+        align_right_action.setShortcut(QKeySequence("Ctrl+R"))
+        align_right_action.triggered.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignRight))
+        format_menu.addAction(align_right_action)
+        
+        align_justify_action = QAction("&Justify", self)
+        align_justify_action.setShortcut(QKeySequence("Ctrl+J"))
+        align_justify_action.triggered.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
+        format_menu.addAction(align_justify_action)
+        
+        format_menu.addSeparator()
+        
         bullet_list_action = QAction("&Bullet List", self)
         bullet_list_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
         bullet_list_action.triggered.connect(self.toggle_bullet_list)
@@ -183,152 +204,213 @@ class MainWindow(QMainWindow):
         
         format_menu.addSeparator()
         
-        orientation_action = QAction("Text &Orientation...", self)
-        orientation_action.setShortcut(QKeySequence("Ctrl+Shift+O"))
-        orientation_action.triggered.connect(self.show_text_orientation)
-        format_menu.addAction(orientation_action)
-        
-        format_menu.addSeparator()
-        
         clear_format_action = QAction("&Clear Formatting", self)
         clear_format_action.setShortcut(QKeySequence("Ctrl+\\"))
         clear_format_action.triggered.connect(self.clear_formatting)
         format_menu.addAction(clear_format_action)
     
+    def _make_tool_btn(self, text: str, tooltip: str, checkable: bool = False,
+                       width: int = 32, font_override: QFont = None) -> QPushButton:
+        """Create a clean, consistently sized toolbar button"""
+        btn = QPushButton(text)
+        btn.setToolTip(tooltip)
+        btn.setCheckable(checkable)
+        btn.setFixedSize(width, 28)
+        if font_override:
+            btn.setFont(font_override)
+        return btn
+
     def _create_formatting_toolbar(self):
-        """Create formatting toolbar with text style controls"""
-        self.format_toolbar = QToolBar("Formatting")
-        self.format_toolbar.setMovable(False)
-        
+        """Create two-row formatting toolbar that looks like a real app"""
+        # We use a plain QWidget with two QHBoxLayout rows instead of QToolBar
+        # so we have full control over spacing and appearance.
+        self.format_toolbar = QWidget()
+        self.format_toolbar.setObjectName("FormatToolbar")
+        self.format_toolbar.setStyleSheet("""
+            QWidget#FormatToolbar {
+                background-color: #383838;
+                border-bottom: 1px solid #222222;
+            }
+        """)
+
+        outer = QVBoxLayout(self.format_toolbar)
+        outer.setContentsMargins(6, 4, 6, 4)
+        outer.setSpacing(3)
+
+        row1 = QHBoxLayout()
+        row1.setSpacing(2)
+        row2 = QHBoxLayout()
+        row2.setSpacing(2)
+        outer.addLayout(row1)
+        outer.addLayout(row2)
+
+        def sep(row):
+            line = QFrame()
+            line.setFrameShape(QFrame.Shape.VLine)
+            line.setStyleSheet("color: #555555; max-width: 1px; margin: 2px 4px;")
+            row.addWidget(line)
+
+        # ── ROW 1: Font family | Font size | Bold Italic Underline Strike | Colors | Link ──
+
+        # Font family
         self.font_combo = QFontComboBox()
-        self.font_combo.setMaximumWidth(200)
+        self.font_combo.setFixedWidth(160)
+        self.font_combo.setFixedHeight(28)
         self.font_combo.setFontFilters(QFontComboBox.FontFilter.ScalableFonts)
         self.font_combo.currentFontChanged.connect(self._change_font_family)
-        self.format_toolbar.addWidget(self.font_combo)
-        
+        row1.addWidget(self.font_combo)
+
+        row1.addSpacing(4)
+
+        # Font size — editable combo
         self.size_combo = QComboBox()
-        self.size_combo.addItems(['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '36', '48', '72'])
-        self.size_combo.setCurrentText('14')
+        self.size_combo.setEditable(True)
+        self.size_combo.setFixedWidth(58)
+        self.size_combo.setFixedHeight(28)
+        self.size_combo.addItems(['8','9','10','11','12','14','16','18','20','24','28','36','48','72'])
+        self.size_combo.setCurrentText('12')
         self.size_combo.currentTextChanged.connect(self._change_font_size)
-        self.format_toolbar.addWidget(self.size_combo)
-        
-        self.format_toolbar.addSeparator()
-        
-        self.bold_btn = QPushButton("B")
-        self.bold_btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        self.bold_btn.setCheckable(True)
-        self.bold_btn.setFixedSize(40, 35)
-        self.bold_btn.setToolTip("Bold (Ctrl+B)")
+        self.size_combo.lineEdit().returnPressed.connect(
+            lambda: self._change_font_size(self.size_combo.currentText())
+        )
+        row1.addWidget(self.size_combo)
+
+        sep(row1)
+
+        # Bold
+        bold_font = QFont("Georgia", 10, QFont.Weight.Bold)
+        self.bold_btn = self._make_tool_btn("B", "Bold (Ctrl+B)", checkable=True,
+                                            font_override=bold_font)
         self.bold_btn.clicked.connect(self.toggle_bold)
-        self.format_toolbar.addWidget(self.bold_btn)
-        
-        self.italic_btn = QPushButton("I")
-        self.italic_btn.setFont(QFont("Arial", 10, QFont.Weight.Normal, True))
-        self.italic_btn.setCheckable(True)
-        self.italic_btn.setFixedSize(40, 35)
-        self.italic_btn.setToolTip("Italic (Ctrl+I)")
+        row1.addWidget(self.bold_btn)
+
+        # Italic
+        italic_font = QFont("Georgia", 10)
+        italic_font.setItalic(True)
+        self.italic_btn = self._make_tool_btn("I", "Italic (Ctrl+I)", checkable=True,
+                                              font_override=italic_font)
         self.italic_btn.clicked.connect(self.toggle_italic)
-        self.format_toolbar.addWidget(self.italic_btn)
-        
-        self.underline_btn = QPushButton("U")
-        font = QFont("Arial", 10)
-        font.setUnderline(True)
-        self.underline_btn.setFont(font)
-        self.underline_btn.setCheckable(True)
-        self.underline_btn.setFixedSize(40, 35)
-        self.underline_btn.setToolTip("Underline (Ctrl+U)")
+        row1.addWidget(self.italic_btn)
+
+        # Underline
+        ul_font = QFont("Arial", 9)
+        ul_font.setUnderline(True)
+        self.underline_btn = self._make_tool_btn("U", "Underline (Ctrl+U)", checkable=True,
+                                                 font_override=ul_font)
         self.underline_btn.clicked.connect(self.toggle_underline)
-        self.format_toolbar.addWidget(self.underline_btn)
-        
-        self.strike_btn = QPushButton("S")
-        font = QFont("Arial", 10)
-        font.setStrikeOut(True)
-        self.strike_btn.setFont(font)
-        self.strike_btn.setCheckable(True)
-        self.strike_btn.setFixedSize(40, 35)
-        self.strike_btn.setToolTip("Strikethrough")
+        row1.addWidget(self.underline_btn)
+
+        # Strikethrough
+        st_font = QFont("Arial", 9)
+        st_font.setStrikeOut(True)
+        self.strike_btn = self._make_tool_btn("S", "Strikethrough", checkable=True,
+                                              font_override=st_font)
         self.strike_btn.clicked.connect(self.toggle_strikethrough)
-        self.format_toolbar.addWidget(self.strike_btn)
-        
-        self.format_toolbar.addSeparator()
-        
+        row1.addWidget(self.strike_btn)
+
+        sep(row1)
+
+        # Text colour — shows a small coloured underline like Word
         self.text_color_btn = QPushButton("A")
-        self.text_color_btn.setStyleSheet("""
-            QPushButton {
-                color: #FF0000;
-                font-weight: bold;
-                border-bottom: 3px solid #FF0000;
-            }
-        """)
-        self.text_color_btn.setFixedSize(40, 35)
+        self.text_color_btn.setFixedSize(32, 28)
         self.text_color_btn.setToolTip("Text Color")
+        self._current_text_color = QColor("#FFFFFF")
+        self._refresh_text_color_btn()
         self.text_color_btn.clicked.connect(self.change_text_color)
-        self.format_toolbar.addWidget(self.text_color_btn)
-        
-        self.bg_color_btn = QPushButton("H")
-        self.bg_color_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FFFF00;
-                color: #000000;
-                font-weight: bold;
-            }
-        """)
-        self.bg_color_btn.setFixedSize(40, 35)
+        row1.addWidget(self.text_color_btn)
+
+        # Highlight colour
+        self.bg_color_btn = QPushButton("ab")
+        self.bg_color_btn.setFixedSize(34, 28)
         self.bg_color_btn.setToolTip("Highlight Color")
+        self._current_bg_color = QColor("#FFFF00")
+        self._refresh_bg_color_btn()
         self.bg_color_btn.clicked.connect(self.change_background_color)
-        self.format_toolbar.addWidget(self.bg_color_btn)
-        
-        self.format_toolbar.addSeparator()
-        
-        self.link_btn = QPushButton("🔗")
-        self.link_btn.setFixedSize(40, 35)
-        self.link_btn.setToolTip("Insert Link")
+        row1.addWidget(self.bg_color_btn)
+
+        sep(row1)
+
+        # Link
+        self.link_btn = self._make_tool_btn("🔗", "Insert Link (Ctrl+K)", width=34)
         self.link_btn.clicked.connect(self.add_link)
-        self.format_toolbar.addWidget(self.link_btn)
-        
-        self.format_toolbar.addSeparator()
-        
-        # List buttons
-        self.bullet_list_btn = QPushButton("• List")
-        self.bullet_list_btn.setFixedSize(60, 35)
-        self.bullet_list_btn.setToolTip("Bullet List (Ctrl+Shift+L)")
-        self.bullet_list_btn.clicked.connect(self.toggle_bullet_list)
-        self.format_toolbar.addWidget(self.bullet_list_btn)
-        
-        self.numbered_list_btn = QPushButton("1. List")
-        self.numbered_list_btn.setFixedSize(60, 35)
-        self.numbered_list_btn.setToolTip("Numbered List (Ctrl+Shift+N)")
-        self.numbered_list_btn.clicked.connect(self.toggle_numbered_list)
-        self.format_toolbar.addWidget(self.numbered_list_btn)
-        
-        # Table button
-        self.table_btn = QPushButton("⊞ Table")
-        self.table_btn.setFixedSize(65, 35)
-        self.table_btn.setToolTip("Insert Table (Ctrl+T)")
-        self.table_btn.clicked.connect(self.insert_table)
-        self.format_toolbar.addWidget(self.table_btn)
-        
-        self.table_props_btn = QPushButton("⊟ Props")
-        self.table_props_btn.setFixedSize(65, 35)
-        self.table_props_btn.setToolTip("Table Properties (Ctrl+Shift+T)")
-        self.table_props_btn.clicked.connect(self.show_table_properties)
-        self.format_toolbar.addWidget(self.table_props_btn)
-        
-        self.format_toolbar.addSeparator()
-        
-        self.orientation_btn = QPushButton("⟳ Orient")
-        self.orientation_btn.setFixedSize(70, 35)
-        self.orientation_btn.setToolTip("Text Orientation (Ctrl+Shift+O)")
-        self.orientation_btn.clicked.connect(self.show_text_orientation)
-        self.format_toolbar.addWidget(self.orientation_btn)
-        
-        self.format_toolbar.addSeparator()
-        
-        self.clear_btn = QPushButton("Clear")
-        self.clear_btn.setFixedSize(70, 35)
-        self.clear_btn.setToolTip("Clear Formatting")
+        row1.addWidget(self.link_btn)
+
+        sep(row1)
+
+        # Clear formatting
+        self.clear_btn = self._make_tool_btn("Tx", "Clear Formatting (Ctrl+\\)", width=34)
+        self.clear_btn.setStyleSheet("""
+            QPushButton { font-weight: bold; color: #CCCCCC; }
+            QPushButton:hover { background-color: #5A5A5A; }
+        """)
         self.clear_btn.clicked.connect(self.clear_formatting)
-        self.format_toolbar.addWidget(self.clear_btn)
+        row1.addWidget(self.clear_btn)
+
+        row1.addStretch()
+
+        # ── ROW 2: Alignment | Lists | Table | Indent ──
+
+        # Alignment buttons (mutually exclusive feel via checkable)
+        self.align_left_btn   = self._make_tool_btn("≡\u2190", "Align Left (Ctrl+L)",   checkable=True, width=32)
+        self.align_center_btn = self._make_tool_btn("≡·",      "Center (Ctrl+E)",        checkable=True, width=32)
+        self.align_right_btn  = self._make_tool_btn("≡\u2192", "Align Right (Ctrl+R)",  checkable=True, width=32)
+        self.align_just_btn   = self._make_tool_btn("≡≡",      "Justify (Ctrl+J)",       checkable=True, width=32)
+
+        self.align_left_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignLeft))
+        self.align_center_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignHCenter))
+        self.align_right_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignRight))
+        self.align_just_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
+
+        # Use Unicode block characters for nicer alignment icons
+        self.align_left_btn.setText("⬜⬜⬜\n⬜⬜·\n⬜⬜⬜")
+        self.align_center_btn.setText("·⬜⬜·")
+        self.align_right_btn.setText("⬜⬜⬜")
+        self.align_just_btn.setText("⬛⬛⬛")
+
+        # Actually use cleaner text symbols
+        self.align_left_btn.setText("  ≡")
+        self.align_center_btn.setText(" ≡ ")
+        self.align_right_btn.setText("≡  ")
+        self.align_just_btn.setText("≣")
+
+        for btn in (self.align_left_btn, self.align_center_btn,
+                    self.align_right_btn, self.align_just_btn):
+            row2.addWidget(btn)
+
+        sep(row2)
+
+        # Lists
+        self.bullet_list_btn = self._make_tool_btn("• ≡", "Bullet List (Ctrl+Shift+L)", width=38)
+        self.bullet_list_btn.clicked.connect(self.toggle_bullet_list)
+        row2.addWidget(self.bullet_list_btn)
+
+        self.numbered_list_btn = self._make_tool_btn("1. ≡", "Numbered List (Ctrl+Shift+N)", width=42)
+        self.numbered_list_btn.clicked.connect(self.toggle_numbered_list)
+        row2.addWidget(self.numbered_list_btn)
+
+        sep(row2)
+
+        # Indent
+        self.indent_btn = self._make_tool_btn("→ ≡", "Increase Indent (Tab)", width=38)
+        self.indent_btn.clicked.connect(self._increase_indent)
+        row2.addWidget(self.indent_btn)
+
+        self.outdent_btn = self._make_tool_btn("← ≡", "Decrease Indent (Shift+Tab)", width=38)
+        self.outdent_btn.clicked.connect(self._decrease_indent)
+        row2.addWidget(self.outdent_btn)
+
+        sep(row2)
+
+        # Table
+        self.table_btn = self._make_tool_btn("⊞ Table", "Insert Table (Ctrl+T)", width=72)
+        self.table_btn.clicked.connect(self.insert_table)
+        row2.addWidget(self.table_btn)
+
+        self.table_props_btn = self._make_tool_btn("⊟ Props", "Table Properties (Ctrl+Shift+T)", width=72)
+        self.table_props_btn.clicked.connect(self.show_table_properties)
+        row2.addWidget(self.table_props_btn)
+
+        row2.addStretch()
     
     def _create_tab_widget(self):
         """Create tab widget for multiple documents"""
@@ -753,53 +835,66 @@ class MainWindow(QMainWindow):
         """Change text color"""
         current_tab = self._get_current_tab()
         if current_tab:
-            current_color = current_tab.text_edit.textColor()
-            color = QColorDialog.getColor(current_color, self, "Choose Text Color")
+            color = QColorDialog.getColor(self._current_text_color, self, "Choose Text Color")
             
             if color.isValid():
+                self._current_text_color = color
                 fmt = current_tab.text_edit.currentCharFormat()
                 fmt.setForeground(QBrush(color))
                 current_tab.text_edit.mergeCurrentCharFormat(fmt)
-                
-                self.text_color_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        color: {color.name()};
-                        font-weight: bold;
-                        border-bottom: 3px solid {color.name()};
-                        background-color: #4A4A4A;
-                    }}
-                    QPushButton:hover {{
-                        background-color: #5A5A5A;
-                    }}
-                """)
+                self._refresh_text_color_btn()
                 current_tab.text_edit.setFocus()
+    
+    def _refresh_text_color_btn(self):
+        """Update text color button to show current color as underline"""
+        c = self._current_text_color.name()
+        self.text_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                font-weight: bold;
+                font-size: 11pt;
+                border-bottom: 3px solid {c};
+                background-color: #4A4A4A;
+                border-top: 1px solid #555;
+                border-left: 1px solid #555;
+                border-right: 1px solid #555;
+            }}
+            QPushButton:hover {{ background-color: #5A5A5A; }}
+            QPushButton:pressed {{ background-color: #353535; }}
+        """)
     
     def change_background_color(self):
         """Change text background (highlight) color"""
         current_tab = self._get_current_tab()
         if current_tab:
-            current_fmt = current_tab.text_edit.currentCharFormat()
-            current_color = current_fmt.background().color()
-            color = QColorDialog.getColor(current_color, self, "Choose Highlight Color")
+            color = QColorDialog.getColor(self._current_bg_color, self, "Choose Highlight Color")
             
             if color.isValid():
+                self._current_bg_color = color
                 fmt = current_tab.text_edit.currentCharFormat()
                 fmt.setBackground(QBrush(color))
                 current_tab.text_edit.mergeCurrentCharFormat(fmt)
-                
-                text_color = "#000000" if color.lightness() > 128 else "#FFFFFF"
-                self.bg_color_btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background-color: {color.name()};
-                        color: {text_color};
-                        font-weight: bold;
-                        border: 1px solid #555555;
-                    }}
-                    QPushButton:hover {{
-                        opacity: 0.9;
-                    }}
-                """)
+                self._refresh_bg_color_btn()
                 current_tab.text_edit.setFocus()
+    
+    def _refresh_bg_color_btn(self):
+        """Update highlight button to show current color as background strip"""
+        c = self._current_bg_color.name()
+        lum = self._current_bg_color.lightnessF()
+        text_color = "#000000" if lum > 0.5 else "#FFFFFF"
+        self.bg_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                font-weight: bold;
+                font-size: 9pt;
+                border-bottom: 3px solid {c};
+                background-color: #4A4A4A;
+                border-top: 1px solid #555;
+                border-left: 1px solid #555;
+                border-right: 1px solid #555;
+                color: {text_color};
+            }}
+            QPushButton:hover {{ background-color: #5A5A5A; }}
+            QPushButton:pressed {{ background-color: #353535; }}
+        """)
     
     def add_link(self):
         """Add a hyperlink"""
@@ -997,16 +1092,6 @@ class MainWindow(QMainWindow):
         dlg.exec()
         current_tab.text_edit.setFocus()
     
-    def show_text_orientation(self):
-        """Show text orientation dialog"""
-        current_tab = self._get_current_tab()
-        if not current_tab:
-            return
-        
-        dlg = TextOrientationDialog(current_tab.text_edit, self)
-        dlg.exec()
-        current_tab.text_edit.setFocus()
-    
     def _show_context_menu(self, pos: QPoint, text_edit: QTextEdit):
         """Show custom right-click context menu"""
         menu = text_edit.createStandardContextMenu()
@@ -1049,12 +1134,11 @@ class MainWindow(QMainWindow):
             )
         
         menu.addSeparator()
-        orient_action = menu.addAction("Text Orientation…")
-        current_tab = self._get_current_tab()
-        if current_tab:
-            orient_action.triggered.connect(
-                lambda: TextOrientationDialog(current_tab.text_edit, self).exec()
-            )
+        align_menu = menu.addMenu("Alignment")
+        align_menu.addAction("Align Left",    lambda: self.set_alignment(Qt.AlignmentFlag.AlignLeft))
+        align_menu.addAction("Center",        lambda: self.set_alignment(Qt.AlignmentFlag.AlignHCenter))
+        align_menu.addAction("Align Right",   lambda: self.set_alignment(Qt.AlignmentFlag.AlignRight))
+        align_menu.addAction("Justify",       lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
         
         menu.exec(text_edit.mapToGlobal(pos))
     
@@ -1086,6 +1170,37 @@ class MainWindow(QMainWindow):
             except ValueError:
                 pass
     
+    def set_alignment(self, alignment: Qt.AlignmentFlag):
+        """Set paragraph alignment for current selection"""
+        current_tab = self._get_current_tab()
+        if current_tab:
+            current_tab.text_edit.setAlignment(alignment)
+            self._update_format_buttons()
+            current_tab.text_edit.setFocus()
+    
+    def _increase_indent(self):
+        """Increase paragraph indent"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        cursor = current_tab.text_edit.textCursor()
+        block_fmt = cursor.blockFormat()
+        block_fmt.setIndent(block_fmt.indent() + 1)
+        cursor.setBlockFormat(block_fmt)
+        current_tab.text_edit.setFocus()
+    
+    def _decrease_indent(self):
+        """Decrease paragraph indent"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        cursor = current_tab.text_edit.textCursor()
+        block_fmt = cursor.blockFormat()
+        new_indent = max(0, block_fmt.indent() - 1)
+        block_fmt.setIndent(new_indent)
+        cursor.setBlockFormat(block_fmt)
+        current_tab.text_edit.setFocus()
+
     def _update_format_buttons(self):
         """Update formatting button states based on current cursor position"""
         current_tab = self._get_current_tab()
@@ -1094,30 +1209,34 @@ class MainWindow(QMainWindow):
         
         fmt = current_tab.text_edit.currentCharFormat()
         
-        self.bold_btn.blockSignals(True)
-        self.italic_btn.blockSignals(True)
-        self.underline_btn.blockSignals(True)
-        self.strike_btn.blockSignals(True)
-        self.font_combo.blockSignals(True)
-        self.size_combo.blockSignals(True)
+        for btn in (self.bold_btn, self.italic_btn, self.underline_btn,
+                    self.strike_btn, self.font_combo, self.size_combo,
+                    self.align_left_btn, self.align_center_btn,
+                    self.align_right_btn, self.align_just_btn):
+            btn.blockSignals(True)
         
         self.bold_btn.setChecked(fmt.fontWeight() == QFont.Weight.Bold)
         self.italic_btn.setChecked(fmt.fontItalic())
         self.underline_btn.setChecked(fmt.fontUnderline())
         self.strike_btn.setChecked(fmt.fontStrikeOut())
         
-        self.size_combo.blockSignals(True)
         ps = fmt.fontPointSize()
         if ps and ps > 0:
             self.size_combo.setCurrentText(str(int(ps)))
-        self.size_combo.blockSignals(False)
         
-        self.bold_btn.blockSignals(False)
-        self.italic_btn.blockSignals(False)
-        self.underline_btn.blockSignals(False)
-        self.strike_btn.blockSignals(False)
-        self.font_combo.blockSignals(False)
-        self.size_combo.blockSignals(False)
+        # Alignment
+        alignment = current_tab.text_edit.alignment()
+        self.align_left_btn.setChecked(alignment == Qt.AlignmentFlag.AlignLeft or
+                                       alignment == Qt.AlignmentFlag.AlignAbsolute)
+        self.align_center_btn.setChecked(alignment == Qt.AlignmentFlag.AlignHCenter)
+        self.align_right_btn.setChecked(alignment == Qt.AlignmentFlag.AlignRight)
+        self.align_just_btn.setChecked(alignment == Qt.AlignmentFlag.AlignJustify)
+        
+        for btn in (self.bold_btn, self.italic_btn, self.underline_btn,
+                    self.strike_btn, self.font_combo, self.size_combo,
+                    self.align_left_btn, self.align_center_btn,
+                    self.align_right_btn, self.align_just_btn):
+            btn.blockSignals(False)
     
     # Search Methods
     def _show_search_bar(self):
