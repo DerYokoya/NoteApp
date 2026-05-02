@@ -6,12 +6,40 @@
 from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
+from PyQt6.QtGui import QMouseEvent
+from PyQt6.QtCore import Qt
+import webbrowser
+
+
+class LinkAwareTextEdit(QTextEdit):
+    """Custom QTextEdit that opens links on Ctrl+Click"""
+    
+    def mousePressEvent(self, event: QMouseEvent):
+        """Handle mouse click - open links on Ctrl+Click"""
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            # Get the cursor at click position
+            cursor = self.cursorForPosition(event.pos())
+            char_fmt = cursor.charFormat()
+            url = char_fmt.anchorHref()
+            
+            if url:
+                # Open URL in default browser
+                try:
+                    webbrowser.open(url)
+                except Exception as e:
+                    print(f"Failed to open URL: {e}")
+                event.accept()
+                return
+        
+        # Normal click handling
+        super().mousePressEvent(event)
+
 
 class DocumentTab:
     """Encapsulating a single document with its state and metadata"""
     
     def __init__(self, name: Optional[str] = None):
-        self.text_edit = QTextEdit()
+        self.text_edit = LinkAwareTextEdit()
         self.text_edit.setAcceptRichText(True)
         self.text_edit.setUndoRedoEnabled(True)  # Explicitly enable
         

@@ -180,6 +180,15 @@ class TablePropertiesDialog(QDialog):
         self.bg_color_btn.clicked.connect(self._pick_bg_color)
         layout.addRow("Background colour:", self.bg_color_btn)
 
+        # Tip for grid effect
+        layout.addRow(QLabel(""))  # Spacer
+        tip = QLabel(
+            "<small><b>Tip:</b> To create a grid effect, increase "
+            "<b>Cell spacing</b> in the Structure tab.</small>"
+        )
+        tip.setWordWrap(True)
+        layout.addRow(tip)
+
         return w
 
     # --- Columns tab --------------------------------------------------

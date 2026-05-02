@@ -3,6 +3,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from pathlib import Path
 from typing import Optional, List
+import webbrowser
 
 from config.app_config import AppConfig
 from config.styles import StyleSheet
@@ -935,48 +936,74 @@ class MainWindow(QMainWindow):
         """)
     
     def add_link(self):
-        """Add a hyperlink"""
+        """Add or edit a hyperlink"""
         current_tab = self._get_current_tab()
-        if current_tab:
-            cursor = current_tab.text_edit.textCursor()
-            selected_text = cursor.selectedText()
-            
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        selected_text = cursor.selectedText()
+        
+        # Check if cursor is on an existing link
+        char_fmt = cursor.charFormat()
+        existing_url = char_fmt.anchorHref()
+        
+        # If on existing link and no selection, show edit dialog with current URL
+        if existing_url and not selected_text:
             url, ok = QInputDialog.getText(
                 self,
-                "Insert Link",
-                "Enter URL:",
+                "Edit Link",
+                "Edit URL:",
                 QLineEdit.EchoMode.Normal,
-                "https://"
+                existing_url
             )
-            
-            if not ok or not url:
-                return
-            
-            if not selected_text:
-                link_text, ok2 = QInputDialog.getText(
-                    self,
-                    "Insert Link",
-                    "Enter link text:",
-                    QLineEdit.EchoMode.Normal,
-                    url
-                )
-                if ok2 and link_text:
-                    selected_text = link_text
-                else:
-                    selected_text = url
-            
-            fmt = QTextCharFormat()
-            fmt.setAnchor(True)
-            fmt.setAnchorHref(url)
-            fmt.setForeground(QBrush(QColor("#0078D4")))
-            fmt.setFontUnderline(True)
-            
-            if cursor.hasSelection():
+            if ok and url:
+                fmt = QTextCharFormat()
+                fmt.setAnchor(True)
+                fmt.setAnchorHref(url)
+                fmt.setForeground(QBrush(QColor("#0078D4")))
+                fmt.setFontUnderline(True)
                 cursor.mergeCharFormat(fmt)
-            else:
-                cursor.insertText(selected_text, fmt)
-            
             current_tab.text_edit.setFocus()
+            return
+        
+        # Normal link creation
+        url, ok = QInputDialog.getText(
+            self,
+            "Insert Link",
+            "Enter URL:",
+            QLineEdit.EchoMode.Normal,
+            "https://"
+        )
+        
+        if not ok or not url:
+            return
+        
+        if not selected_text:
+            link_text, ok2 = QInputDialog.getText(
+                self,
+                "Insert Link",
+                "Enter link text:",
+                QLineEdit.EchoMode.Normal,
+                url
+            )
+            if ok2 and link_text:
+                selected_text = link_text
+            else:
+                selected_text = url
+        
+        fmt = QTextCharFormat()
+        fmt.setAnchor(True)
+        fmt.setAnchorHref(url)
+        fmt.setForeground(QBrush(QColor("#0078D4")))
+        fmt.setFontUnderline(True)
+        
+        if cursor.hasSelection():
+            cursor.mergeCharFormat(fmt)
+        else:
+            cursor.insertText(selected_text, fmt)
+        
+        current_tab.text_edit.setFocus()
     
     def clear_formatting(self):
         """Clear all text formatting"""
