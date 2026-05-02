@@ -167,14 +167,14 @@ class TablePropertiesDialog(QDialog):
         layout.addRow("Border width:", self.border_width_spin)
 
         # Border colour
-        self.border_color = QColor("#888888")
+        self.border_color = QColor("#444444")
         self.border_color_btn = QPushButton()
         self._update_color_btn(self.border_color_btn, self.border_color)
         self.border_color_btn.clicked.connect(self._pick_border_color)
         layout.addRow("Border colour:", self.border_color_btn)
 
         # Background colour
-        self.bg_color = QColor(Qt.GlobalColor.transparent)
+        self.bg_color = QColor(Qt.GlobalColor.white)
         self.bg_color_btn = QPushButton()
         self._update_color_btn(self.bg_color_btn, self.bg_color)
         self.bg_color_btn.clicked.connect(self._pick_bg_color)
@@ -277,7 +277,7 @@ class TablePropertiesDialog(QDialog):
         fmt.setCellPadding(self.padding_spin.value())
         fmt.setCellSpacing(self.spacing_spin.value())
 
-        # Borders
+        # Borders - apply to table edges
         fmt.setBorderStyle(self.BORDER_STYLES[self.border_style_combo.currentText()])
         fmt.setBorder(self.border_width_spin.value())
         fmt.setBorderBrush(QBrush(self.border_color))
@@ -386,11 +386,20 @@ class TablePropertiesDialog(QDialog):
             self._update_color_btn(self.bg_color_btn, c)
 
     @staticmethod
+    @staticmethod
     def _update_color_btn(btn: QPushButton, color: QColor):
         lum = color.lightnessF()
         text_color = "#000000" if lum > 0.5 else "#FFFFFF"
+        # Make the button background darker than the selected color for visibility
+        darker_bg = "#2A2A2A"
         btn.setStyleSheet(
-            f"QPushButton {{ background-color: {color.name()}; "
-            f"color: {text_color}; border: 1px solid #555; }}"
+            f"QPushButton {{ "
+            f"background-color: {darker_bg}; "
+            f"color: {text_color}; "
+            f"border: 2px solid {color.name()}; "
+            f"border-radius: 4px; "
+            f"padding: 6px; "
+            f"font-weight: bold; "
+            f"}}"
         )
         btn.setText(color.name().upper())
