@@ -5,8 +5,6 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 ARROW_PATH = (BASE_DIR / "icons" / "down_arrow.svg").as_posix()
-print(ARROW_PATH)
-print(Path(ARROW_PATH).exists())
 class StyleSheet:
     """Application-wide stylesheet"""
     DARK_THEME = """
