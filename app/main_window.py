@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
         if open_tabs:
             for filepath in open_tabs:
                 try:
-                    self.open_file(filepath)
+                    self._load_file_async(Path(filepath))
                 except Exception as e:
                     print(f"Failed to restore tab: {filepath} - {e}")
             
@@ -633,6 +633,9 @@ class MainWindow(QMainWindow):
             current_index = self.tab_widget.currentIndex()
             self.tab_widget.removeTab(current_index)
             self.tabs.pop(current_index)
+            
+            if self.tab_widget.count() == 0:
+                self.new_tab()
             
             self._save_session()
             
