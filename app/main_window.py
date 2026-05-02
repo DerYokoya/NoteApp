@@ -11,6 +11,8 @@ from services.file_operations import FileOperations
 from services.settings_manager import SettingsManager
 from widgets.search_bar import SearchBar
 from widgets.status_bar import StatusBarWidget
+from widgets.table_dialog import TablePropertiesDialog
+from widgets.text_orientation_dialog import TextOrientationDialog
 
 
 class MainWindow(QMainWindow):
@@ -174,6 +176,18 @@ class MainWindow(QMainWindow):
         table_action.triggered.connect(self.insert_table)
         format_menu.addAction(table_action)
         
+        table_props_action = QAction("Table &Properties...", self)
+        table_props_action.setShortcut(QKeySequence("Ctrl+Shift+T"))
+        table_props_action.triggered.connect(self.show_table_properties)
+        format_menu.addAction(table_props_action)
+        
+        format_menu.addSeparator()
+        
+        orientation_action = QAction("Text &Orientation...", self)
+        orientation_action.setShortcut(QKeySequence("Ctrl+Shift+O"))
+        orientation_action.triggered.connect(self.show_text_orientation)
+        format_menu.addAction(orientation_action)
+        
         format_menu.addSeparator()
         
         clear_format_action = QAction("&Clear Formatting", self)
@@ -294,6 +308,20 @@ class MainWindow(QMainWindow):
         self.table_btn.clicked.connect(self.insert_table)
         self.format_toolbar.addWidget(self.table_btn)
         
+        self.table_props_btn = QPushButton("⊟ Props")
+        self.table_props_btn.setFixedSize(65, 35)
+        self.table_props_btn.setToolTip("Table Properties (Ctrl+Shift+T)")
+        self.table_props_btn.clicked.connect(self.show_table_properties)
+        self.format_toolbar.addWidget(self.table_props_btn)
+        
+        self.format_toolbar.addSeparator()
+        
+        self.orientation_btn = QPushButton("⟳ Orient")
+        self.orientation_btn.setFixedSize(70, 35)
+        self.orientation_btn.setToolTip("Text Orientation (Ctrl+Shift+O)")
+        self.orientation_btn.clicked.connect(self.show_text_orientation)
+        self.format_toolbar.addWidget(self.orientation_btn)
+        
         self.format_toolbar.addSeparator()
         
         self.clear_btn = QPushButton("Clear")
@@ -404,6 +432,10 @@ class MainWindow(QMainWindow):
         doc_tab.text_edit.textChanged.connect(self._on_text_changed)
         doc_tab.text_edit.cursorPositionChanged.connect(self._update_format_buttons)
         doc_tab.text_edit.cursorPositionChanged.connect(self._update_status_bar)
+        doc_tab.text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        doc_tab.text_edit.customContextMenuRequested.connect(
+            lambda pos, te=doc_tab.text_edit: self._show_context_menu(pos, te)
+        )
         
         index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
         self.tabs.append(doc_tab)
@@ -520,6 +552,10 @@ class MainWindow(QMainWindow):
             doc_tab.text_edit.textChanged.connect(self._on_text_changed)
             doc_tab.text_edit.cursorPositionChanged.connect(self._update_format_buttons)
             doc_tab.text_edit.cursorPositionChanged.connect(self._update_status_bar)
+            doc_tab.text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            doc_tab.text_edit.customContextMenuRequested.connect(
+                lambda pos, te=doc_tab.text_edit: self._show_context_menu(pos, te)
+            )
             
             index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
             self.tabs.append(doc_tab)
@@ -934,6 +970,7 @@ class MainWindow(QMainWindow):
             # Create table format
             table_fmt = QTextTableFormat()
             table_fmt.setBorder(1)
+            table_fmt.setBorderStyle(QTextFrameFormat.BorderStyle.BorderStyle_Solid)
             table_fmt.setCellPadding(5)
             table_fmt.setCellSpacing(0)
             table_fmt.setWidth(QTextLength(QTextLength.Type.PercentageLength, 100))
@@ -942,6 +979,90 @@ class MainWindow(QMainWindow):
             cursor.insertTable(rows, cols, table_fmt)
         
         current_tab.text_edit.setFocus()
+    
+    def show_table_properties(self):
+        """Show table properties dialog for the table under cursor"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        table = cursor.currentTable()
+        if not table:
+            QMessageBox.information(self, "Table Properties",
+                                    "Please click inside a table first.")
+            return
+        
+        dlg = TablePropertiesDialog(table, self)
+        dlg.exec()
+        current_tab.text_edit.setFocus()
+    
+    def show_text_orientation(self):
+        """Show text orientation dialog"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        dlg = TextOrientationDialog(current_tab.text_edit, self)
+        dlg.exec()
+        current_tab.text_edit.setFocus()
+    
+    def _show_context_menu(self, pos: QPoint, text_edit: QTextEdit):
+        """Show custom right-click context menu"""
+        menu = text_edit.createStandardContextMenu()
+        
+        cursor = text_edit.cursorForPosition(pos)
+        # Move cursor to click position so table detection works
+        text_edit.setTextCursor(cursor)
+        table = cursor.currentTable()
+        
+        if table:
+            menu.addSeparator()
+            table_menu = menu.addMenu("Table")
+            
+            add_row_above = table_menu.addAction("Insert Row Above")
+            add_row_below = table_menu.addAction("Insert Row Below")
+            add_col_left  = table_menu.addAction("Insert Column Left")
+            add_col_right = table_menu.addAction("Insert Column Right")
+            table_menu.addSeparator()
+            del_row = table_menu.addAction("Delete Row")
+            del_col = table_menu.addAction("Delete Column")
+            table_menu.addSeparator()
+            table_props = table_menu.addAction("Table Properties…")
+            
+            cell = table.cellAt(cursor)
+            row = cell.row()
+            col = cell.column()
+            
+            add_row_above.triggered.connect(lambda: table.insertRows(row, 1))
+            add_row_below.triggered.connect(lambda: table.insertRows(row + 1, 1))
+            add_col_left.triggered.connect(lambda: table.insertColumns(col, 1))
+            add_col_right.triggered.connect(lambda: table.insertColumns(col + 1, 1))
+            del_row.triggered.connect(
+                lambda: table.removeRows(row, 1) if table.rows() > 1 else None
+            )
+            del_col.triggered.connect(
+                lambda: table.removeColumns(col, 1) if table.columns() > 1 else None
+            )
+            table_props.triggered.connect(
+                lambda: self._open_table_props_for(table, text_edit)
+            )
+        
+        menu.addSeparator()
+        orient_action = menu.addAction("Text Orientation…")
+        current_tab = self._get_current_tab()
+        if current_tab:
+            orient_action.triggered.connect(
+                lambda: TextOrientationDialog(current_tab.text_edit, self).exec()
+            )
+        
+        menu.exec(text_edit.mapToGlobal(pos))
+    
+    def _open_table_props_for(self, table: QTextTable, text_edit: QTextEdit):
+        """Open table properties for a specific table"""
+        dlg = TablePropertiesDialog(table, self)
+        dlg.exec()
+        text_edit.setFocus()
     
     def _change_font_family(self, font: QFont):
         """Change font family"""
