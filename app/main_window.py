@@ -1348,8 +1348,10 @@ class MainWindow(QMainWindow):
         align_menu.addAction("Justify",       lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
         
         # Image resize - check if cursor is at an image
-        block_fmt = cursor.blockFormat()
-        if block_fmt.property(1024) is not None:  # Check for image content
+        char_fmt = cursor.charFormat()
+        # Check if the character format has an image name property
+        image_name = char_fmt.stringProperty(QTextFormat.Property.ImageName)
+        if image_name:  # If image_name exists, we're on an image
             menu.addSeparator()
             image_resize = menu.addAction("Resize Image…")
             image_resize.triggered.connect(lambda: self._resize_image_at_cursor(text_edit))
