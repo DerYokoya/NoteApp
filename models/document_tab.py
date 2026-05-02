@@ -1,4 +1,3 @@
-
 # ============================================================================
 # Document Model
 # ============================================================================
@@ -6,9 +5,10 @@
 from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
-from PyQt6.QtGui import QMouseEvent
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QMouseEvent, QImage
+from PyQt6.QtCore import Qt, QByteArray, QBuffer, QIODevice, QUrl
 import webbrowser
+import re
 
 
 class LinkAwareTextEdit(QTextEdit):
@@ -73,8 +73,36 @@ class DocumentTab:
         return str(self.current_file) if self.current_file else ""
     
     def get_content_html(self) -> str:
-        """Get document content as HTML"""
-        return self.text_edit.toHtml()
+        """Get document content as HTML with embedded images"""
+        html = self.text_edit.toHtml()
+        
+        # Find all src="..." values in the HTML and embed any resolvable images
+        doc = self.text_edit.document()
+        
+        def embed_image(match):
+            src = match.group(1)
+            # Skip already-embedded base64 data URIs
+            if src.startswith("data:"):
+                return match.group(0)
+            url = QUrl(src)
+            # QTextDocument.ResourceType.ImageResource == 2 in PyQt6
+            resource = doc.resource(2, url)
+            image = None
+            if isinstance(resource, QImage):
+                image = resource
+            elif hasattr(resource, 'value') and isinstance(resource.value(), QImage):
+                image = resource.value()
+            if image is not None and not image.isNull():
+                buf = QBuffer()
+                buf.open(QIODevice.OpenModeFlag.WriteOnly)
+                image.save(buf, "PNG")
+                buf.close()
+                base64_data = buf.data().toBase64().data().decode('utf-8')
+                return f'src="data:image/png;base64,{base64_data}"'
+            return match.group(0)
+        
+        html = re.sub(r'src="([^"]*)"', embed_image, html)
+        return html
     
     def get_content_plain(self) -> str:
         """Get document content as plain text"""
