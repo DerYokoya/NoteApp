@@ -102,6 +102,16 @@ class DocumentTab:
             return match.group(0)
         
         html = re.sub(r'src="([^"]*)"', embed_image, html)
+        
+        # Qt bakes the app's dark palette colors into table cell inline styles.
+        # Strip background-color from <td> and <th> cells so they inherit the
+        # page background when opened in a browser.
+        def strip_cell_background(match):
+            tag, attrs = match.group(1), match.group(2)
+            attrs = re.sub(r'\s*background-color\s*:\s*[^;"]+(;)?', '', attrs, flags=re.IGNORECASE)
+            return f'<{tag} {attrs.strip()}>'
+        html = re.sub(r'<(td|th)\s+([^>]+)>', strip_cell_background, html, flags=re.IGNORECASE)
+        
         return html
     
     def get_content_plain(self) -> str:
