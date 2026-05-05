@@ -1,5 +1,6 @@
 # ============================================================================
 # Settings Manager
+# persistence of window geometry, recent files, and open tabs
 # ============================================================================
 
 from PyQt6.QtGui import *

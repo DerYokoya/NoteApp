@@ -1,5 +1,6 @@
 # ============================================================================
 # Document Model
+# document logic, content management, and state tracking for each open document
 # ============================================================================
 
 from pathlib import Path

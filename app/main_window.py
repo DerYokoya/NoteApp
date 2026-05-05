@@ -658,6 +658,8 @@ class MainWindow(QMainWindow):
         
         QTimer.singleShot(0, lambda: self._load_file_async(file_path))
     
+    # One file doesn't prevent the others from loading
+    # Not truly async (uses event loop scheduling to avoid blocking UI)
     def _load_file_async(self, filepath: Path):
         """Load file asynchronously to avoid UI blocking"""
         try:

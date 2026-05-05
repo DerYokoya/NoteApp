@@ -3,6 +3,7 @@ from config.app_config import AppConfig
 
 # ============================================================================
 # File Operations Handler
+# handles disk I/O
 # ============================================================================
 
 class FileOperations:
