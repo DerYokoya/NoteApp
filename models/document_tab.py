@@ -16,8 +16,7 @@ class LinkAwareTextEdit(QTextEdit):
     
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse click - open links on Ctrl+Click"""
-        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
-            # Get the cursor at click position
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier: # Get the cursor at click position
             cursor = self.cursorForPosition(event.pos())
             char_fmt = cursor.charFormat()
             url = char_fmt.anchorHref()

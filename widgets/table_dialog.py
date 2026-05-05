@@ -395,7 +395,6 @@ class TablePropertiesDialog(QDialog):
             self._update_color_btn(self.bg_color_btn, c)
 
     @staticmethod
-    @staticmethod
     def _update_color_btn(btn: QPushButton, color: QColor):
         lum = color.lightnessF()
         text_color = "#000000" if lum > 0.5 else "#FFFFFF"
