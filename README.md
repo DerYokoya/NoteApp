@@ -109,6 +109,8 @@ The application is structured around separation of concerns between UI, document
 
 A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
+---
+
 ## 📁 File Support
 
 - **HTML (.html)** — Full formatting and structure preserved  
