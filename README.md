@@ -57,7 +57,7 @@ The application is structured around separation of concerns between UI, document
   - Each tab maintains independent state to avoid cross-document interference
 
 - **Local-first design**
-  - No external dependencies or cloud integration — ensures performance and reliability
+  - No external dependencies or cloud integration, which ensures performance and reliability
 
 - **PyQt6 for UI**
   - Enables fine-grained control over desktop interactions and complex widgets
@@ -105,6 +105,10 @@ The application is structured around separation of concerns between UI, document
 
 ---
 
+## ⌨️ Keyboard Shortcuts
+
+A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
+
 ## 📁 File Support
 
 - **HTML (.html)** — Full formatting and structure preserved  
@@ -127,7 +131,7 @@ The application is structured around separation of concerns between UI, document
 
 - Plugin system for extensibility  
 - Performance optimization for large documents  
-- Refactor toward MVC/MVVM architecture  
+- Refactor more toward MVC/MVVM architecture  
 - Unit and integration testing for core logic  
 - Export options (e.g., PDF)
 
