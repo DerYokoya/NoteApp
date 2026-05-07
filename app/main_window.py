@@ -2004,26 +2004,43 @@ class MainWindow(QMainWindow):
     # PRINT & PDF EXPORT
     # ========================================================================
     
-    def _print_document(self):
-        """Print the current document"""
-        current_tab = self._get_current_tab()
-        if not current_tab:
-            QMessageBox.warning(self, "Print", "No document to print")
-            return
-        
-        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-        print_dialog = QPrintDialog(printer, self)
-        
-        if print_dialog.exec() == QDialog.DialogCode.Accepted:
-            current_tab.text_edit.print(printer)
-            QMessageBox.information(self, "Print", "Document sent to printer successfully")
-    
     def _export_to_pdf(self):
-        """Export current document to PDF"""
+        """Export current document to PDF with user-selectable scaling"""
         current_tab = self._get_current_tab()
         if not current_tab:
             QMessageBox.warning(self, "Export PDF", "No document to export")
             return
+        
+        # Ask user for scale factor
+        dialog = QDialog(self)
+        dialog.setWindowTitle("PDF Export Options")
+        layout = QVBoxLayout(dialog)
+        
+        layout.addWidget(QLabel("Select font size for PDF:"))
+        
+        scale_combo = QComboBox()
+        scale_combo.addItems(["Normal (10pt)", "Large (12pt)", "Extra Large (14pt)", "Huge (16pt)"])
+        scale_combo.setCurrentIndex(1)  # Default to Large
+        layout.addWidget(scale_combo)
+        
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | 
+            QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        
+        scale_map = {
+            "Normal (10pt)": 10,
+            "Large (12pt)": 12,
+            "Extra Large (14pt)": 14,
+            "Huge (16pt)": 16
+        }
+        font_size = scale_map[scale_combo.currentText()]
         
         default_filename = current_tab.current_file.stem if current_tab.current_file else "document"
         
@@ -2038,14 +2055,88 @@ class MainWindow(QMainWindow):
             printer = QPrinter(QPrinter.PrinterMode.HighResolution)
             printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
             printer.setOutputFileName(filename)
+            printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
             
-            current_tab.text_edit.print(printer)
+            # Fix: Use QMarginsF for page margins
+            margins = QMarginsF(25.4, 25.4, 25.4, 25.4)  # left, top, right, bottom in mm
+            printer.setPageMargins(margins, QPageLayout.Unit.Millimeter)
+            
+            printer.setResolution(300)
+            
+            # Inject CSS with the selected font size
+            original_html = current_tab.get_content_html()
+            
+            css_style = f"""
+            <style>
+                body {{ font-size: {font_size}pt; line-height: 1.5; }}
+                h1 {{ font-size: {font_size + 12}pt; }}
+                h2 {{ font-size: {font_size + 8}pt; }}
+                h3 {{ font-size: {font_size + 4}pt; }}
+                p {{ font-size: {font_size}pt; }}
+                pre, code {{ font-size: {font_size - 1}pt; }}
+            </style>
+            """
+            
+            if '<head>' in original_html:
+                modified_html = original_html.replace('<head>', f'<head>{css_style}')
+            elif '<html>' in original_html:
+                modified_html = original_html.replace('<html>', f'<html><head>{css_style}</head>')
+            else:
+                modified_html = f'<html><head>{css_style}</head><body>{original_html}</body></html>'
+            
+            temp_doc = QTextDocument()
+            temp_doc.setHtml(modified_html)
+            temp_doc.print(printer)
+            
             QMessageBox.information(
                 self, 
                 "Success", 
-                f"PDF exported successfully to:\n{filename}"
+                f"PDF exported successfully to:\n{filename}\n\nFont size: {font_size}pt"
             )
-    
+
+    def _print_document(self):
+        """Print the current document with proper scaling"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            QMessageBox.warning(self, "Print", "No document to print")
+            return
+        
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
+        
+        # Fix: Use QMarginsF for page margins
+        margins = QMarginsF(25.4, 25.4, 25.4, 25.4)  # left, top, right, bottom in mm
+        printer.setPageMargins(margins, QPageLayout.Unit.Millimeter)
+        
+        print_dialog = QPrintDialog(printer, self)
+        
+        if print_dialog.exec() == QDialog.DialogCode.Accepted:
+            # Scale for printing by injecting CSS
+            original_html = current_tab.get_content_html()
+            
+            css_style = """
+            <style>
+                body { font-size: 12pt; line-height: 1.5; }
+                h1 { font-size: 24pt; }
+                h2 { font-size: 20pt; }
+                h3 { font-size: 18pt; }
+                p { font-size: 12pt; }
+            </style>
+            """
+            
+            if '<head>' in original_html:
+                modified_html = original_html.replace('<head>', f'<head>{css_style}')
+            elif '<html>' in original_html:
+                modified_html = original_html.replace('<html>', f'<html><head>{css_style}</head>')
+            else:
+                modified_html = f'<html><head>{css_style}</head><body>{original_html}</body></html>'
+            
+            temp_doc = QTextDocument()
+            temp_doc.setHtml(modified_html)
+            temp_doc.print(printer)
+            
+            QMessageBox.information(self, "Print", "Document sent to printer successfully")
+
     # ========================================================================
     # SUPERSCRIPT & SUBSCRIPT
     # ========================================================================
