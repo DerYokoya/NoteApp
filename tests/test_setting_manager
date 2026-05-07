@@ -1,0 +1,128 @@
+# This test file is for testing the SettingsManager class.
+# It uses pytest to test the functionality of saving and retrieving recent files,
+# as well as saving and restoring window geometry and open tabs.
+from services.settings_manager import SettingsManager
+import pytest
+from pathlib import Path
+from PyQt6.QtWidgets import QMainWindow
+
+def test_recent_files_management(tmp_path, monkeypatch):
+    """Test recent files functionality"""
+    # Use a temporary config path
+    temp_config = tmp_path / "test_config.json"
+    monkeypatch.setattr('services.settings_manager.SETTINGS_FILE', str(temp_config))
+    
+    manager = SettingsManager()
+    
+    # Test empty recent files
+    assert manager.get_recent_files() == []
+    
+    # Test adding recent files
+    fake_file1 = tmp_path / "file1.txt"
+    fake_file2 = tmp_path / "file2.txt"
+    fake_file1.write_text("content1")
+    fake_file2.write_text("content2")
+    
+    manager.add_recent_file(str(fake_file1))
+    manager.add_recent_file(str(fake_file2))
+    
+    recent = manager.get_recent_files()
+    assert len(recent) == 2
+    assert str(fake_file1) in recent
+    assert str(fake_file2) in recent
+    
+    # Test duplicate handling
+    manager.add_recent_file(str(fake_file1))
+    recent = manager.get_recent_files()
+    assert len(recent) == 2  # Should still be 2, no duplicates
+    
+    # Test clearing recent files
+    manager.save_recent_files([])
+    assert manager.get_recent_files() == []
+
+def test_window_geometry_save_restore(qtbot, monkeypatch, tmp_path):
+    """Test window geometry saving and restoring"""
+    temp_config = tmp_path / "test_geometry.json"
+    monkeypatch.setattr('services.settings_manager.SETTINGS_FILE', str(temp_config))
+    
+    manager = SettingsManager()
+    window = QMainWindow()
+    window.resize(800, 600)
+    window.move(100, 100)
+    
+    # Test saving
+    manager.save_window_geometry(window.saveGeometry(), window.saveState())
+    
+    # Test restoring
+    result = manager.restore_window_geometry(window)
+    assert result is True
+
+def test_open_tabs_management(tmp_path, monkeypatch):
+    """Test open tabs saving and restoring"""
+    temp_config = tmp_path / "test_tabs.json"
+    monkeypatch.setattr('services.settings_manager.SETTINGS_FILE', str(temp_config))
+    
+    manager = SettingsManager()
+    
+    # Test saving open tabs
+    tabs = [str(tmp_path / "tab1.txt"), str(tmp_path / "tab2.txt")]
+    manager.save_open_tabs(tabs, 0)
+    
+    # Test restoring
+    restored_tabs, active_index = manager.get_open_tabs()
+    assert restored_tabs == tabs
+    assert active_index == 0
+
+# tests/test_main_window.py
+from app.main_window import MainWindow
+import pytest
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
+
+@pytest.fixture
+def main_window(qtbot):
+    """Create main window for testing"""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    return window
+
+def test_main_window_initialization(main_window):
+    """Test main window initializes correctly"""
+    assert main_window.windowTitle() is not None
+    assert main_window.tab_widget.count() == 1  # One untitled tab
+    assert len(main_window.tabs) == 1
+
+def test_new_tab(main_window):
+    """Test creating new tabs"""
+    initial_count = main_window.tab_widget.count()
+    main_window.new_tab()
+    assert main_window.tab_widget.count() == initial_count + 1
+    assert len(main_window.tabs) == initial_count + 1
+
+def test_close_tab(main_window):
+    """Test closing tabs"""
+    main_window.new_tab()  # Add second tab
+    assert main_window.tab_widget.count() == 2
+    
+    main_window.close_tab(0)
+    assert main_window.tab_widget.count() == 1
+
+def test_text_formatting(main_window):
+    """Test text formatting operations"""
+    current_tab = main_window._get_current_tab()
+    assert current_tab is not None
+    
+    # Test bold toggling
+    main_window.toggle_bold()
+    # Add verification if possible
+    
+    # Test italic toggling
+    main_window.toggle_italic()
+
+def test_search_bar_visibility(main_window):
+    """Test search bar visibility toggling"""
+    assert main_window.search_bar.isVisible() is False
+    main_window._show_search_bar()
+    assert main_window.search_bar.isVisible() is True
+    main_window._hide_search_bar()
+    assert main_window.search_bar.isVisible() is False
