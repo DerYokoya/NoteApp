@@ -6,7 +6,7 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 
 ## Video Showcase
 
-https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
+https://github.com/user-attachments/assets/d6096059-27d3-41dd-b621-1abeac8861bb
 
 ## Screenshots 
 <div align="center">
