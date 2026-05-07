@@ -2116,15 +2116,16 @@ class MainWindow(QMainWindow):
                 cursor.setPosition(block.position())
                 fmt = cursor.blockFormat()
                 
-                # setLineHeight uses proportional height (1.0 = 100% = single spacing)
-                fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
+                # Use int value: 0 = SingleHeight, 1 = ProportionalHeight
+                # Or use the enum value directly with .value
+                fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight.value)
                 cursor.setBlockFormat(fmt)
                 
                 block = block.next()
         else:
             # Apply to current block only
             fmt = cursor.blockFormat()
-            fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
+            fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight.value)
             cursor.setBlockFormat(fmt)
         
         current_tab.text_edit.setFocus()
