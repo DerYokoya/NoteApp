@@ -33,6 +33,7 @@ The application is structured around separation of concerns between UI, document
 - **UI Layer (MainWindow / Widgets)**
   - Handles layout, toolbars, and user interactions
   - Dispatches actions to the editor and document logic
+  - Custom widgets: SearchBar, StatusBarWidget, TablePropertiesDialog, TextOrientationDialog
 
 - **Editor / Document Layer**
   - Manages text state, cursor behavior, and formatting operations
@@ -92,16 +93,22 @@ The application is structured around separation of concerns between UI, document
 - Rich text styling (headings, inline formatting, colors)
 - Lists, indentation, and alignment controls
 - Clear formatting system
+- Superscript & Subscript support
+- Code blocks with monospace formatting
+- Line spacing control (Single, 1.5x, Double)
 
 ### Structured Content
 - Fully editable tables (rows, columns, styling)
 - Image insertion with resizing and scaling
 - Hyperlink creation and editing (Ctrl+Click navigation)
+- Horizontal line separators
 
 ### Navigation & UX
 - Find & replace with match tracking
+- **Replace functionality (Ctrl+H)**
 - Status bar (cursor position, word count)
 - Keyboard-first workflow across all major actions
+- Print support with PDF export
 
 ---
 
@@ -142,10 +149,10 @@ The application is structured as a layered desktop system where user interaction
     │               │                │
     │               │                └─→ SearchBar, StatusBarWidget,
     │               │                     TablePropertiesDialog,
-    │               │                     TextOrientationDialog
+    │               │                     
     │               │
     │               └─→ FileOperations (read/write/delete),
-    │                    SettingsManager, geometry, recent files
+    │                    SettingsManager (geometry, recent files, session restore)
     │
     └─→ Document state, DocumentTab,
          LinkAwareTextEdit,
@@ -203,11 +210,31 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ## Future Improvements
 
-- Plugin system for extensibility  
-- Performance optimization for large documents  
-- Refactor more toward MVC/MVVM architecture  
-- Unit and integration testing for core logic  
-- Export options (e.g., PDF)
+- **Plugin system for extensibility**
+- **Performance optimization for large documents**
+- **Refactor more toward MVC/MVVM architecture**
+- **More Export options (besides PDF, which has been implemented)**
+- **Dark/Light theme toggle**
+- **Cloud sync and backup**
+- **Spell checking**
+- **Auto-save recovery**
+
+---
+
+## Testing
+
+The application includes a comprehensive test suite using pytest and pytest-qt:
+
+```
+# Run all tests
+pytest tests/ -v
+
+# Run specific test category
+pytest tests/test_document_tab.py -v
+
+# Run with coverage report
+pytest tests/ --cov=. --cov-report=html
+```
 
 ---
 
@@ -216,10 +243,16 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 ### Requirements
 - Python 3.10+
 - PyQt6
+- pytest (optional, for running tests)
 
 ### Setup
-```bash
+```
 git clone https://github.com/DerYokoya/NoteApp.git
 cd NoteApp
 pip install -r requirements.txt
 python main.py
+
+# Run tests (optional)
+pip install pytest pytest-qt
+pytest tests/ -v
+```
