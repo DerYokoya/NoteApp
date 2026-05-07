@@ -349,6 +349,7 @@ class MainWindow(QMainWindow):
             'Heading 4',
             'Heading 5',
             'Heading 6',
+            'Code Block',  # ← Added Code Block option
         ])
         self.style_combo.currentTextChanged.connect(self._apply_text_style)
         row1.addWidget(self.style_combo)
@@ -461,12 +462,6 @@ class MainWindow(QMainWindow):
         self.align_just_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
 
         # Use Unicode block characters for nicer alignment icons
-        self.align_left_btn.setText("⬜⬜⬜\n⬜⬜·\n⬜⬜⬜")
-        self.align_center_btn.setText("·⬜⬜·")
-        self.align_right_btn.setText("⬜⬜⬜")
-        self.align_just_btn.setText("⬛⬛⬛")
-
-        # Actually use cleaner text symbols
         self.align_left_btn.setText("  ≡")
         self.align_center_btn.setText(" ≡ ")
         self.align_right_btn.setText("≡  ")
@@ -1113,41 +1108,67 @@ class MainWindow(QMainWindow):
             current_tab.text_edit.setFocus()
     
     def _apply_text_style(self, style_name: str):
-        """Apply predefined text style (Normal, Title, Heading, etc)"""
+        """Apply predefined text style (Normal, Title, Heading, Code Block, etc)"""
         current_tab = self._get_current_tab()
         if not current_tab:
             return
         
         cursor = current_tab.text_edit.textCursor()
-        fmt = QTextCharFormat()
-        block_fmt = cursor.blockFormat()
         
         # Define styles
         styles = {
-            'Normal': {'size': 12, 'bold': False, 'italic': False},
-            'Title': {'size': 28, 'bold': True, 'italic': False},
-            'Subtitle': {'size': 18, 'bold': True, 'italic': True},
-            'Heading 1': {'size': 24, 'bold': True, 'italic': False},
-            'Heading 2': {'size': 20, 'bold': True, 'italic': False},
-            'Heading 3': {'size': 18, 'bold': True, 'italic': False},
-            'Heading 4': {'size': 16, 'bold': True, 'italic': False},
-            'Heading 5': {'size': 14, 'bold': True, 'italic': False},
-            'Heading 6': {'size': 12, 'bold': True, 'italic': False},
+            'Normal': {'size': 12, 'bold': False, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Title': {'size': 28, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Subtitle': {'size': 18, 'bold': True, 'italic': True, 'bg': None, 'fg': None, 'family': None},
+            'Heading 1': {'size': 24, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Heading 2': {'size': 20, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Heading 3': {'size': 18, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Heading 4': {'size': 16, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Heading 5': {'size': 14, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Heading 6': {'size': 12, 'bold': True, 'italic': False, 'bg': None, 'fg': None, 'family': None},
+            'Code Block': {
+                'size': 10, 'bold': False, 'italic': False, 
+                'bg': QColor("#1e1e1e"), 'fg': QColor("#00FF00"), 
+                'family': "Courier New", 'block_bg': QColor("#2b2b2b")
+            },
         }
         
         if style_name in styles:
             style = styles[style_name]
+            
+            # Apply character formatting
+            fmt = QTextCharFormat()
             fmt.setFontPointSize(style['size'])
             fmt.setFontWeight(QFont.Weight.Bold if style['bold'] else QFont.Weight.Normal)
             fmt.setFontItalic(style['italic'])
             
-            # Add spacing for headings
-            if style_name.startswith('Heading') or style_name in ('Title', 'Subtitle'):
-                block_fmt.setTopMargin(12)
-                block_fmt.setBottomMargin(12)
+            if style.get('family'):
+                fmt.setFontFamily(style['family'])
+            if style.get('fg'):
+                fmt.setForeground(QBrush(style['fg']))
+            if style.get('bg'):
+                fmt.setBackground(QBrush(style['bg']))
+            
+            # Apply block formatting for code block
+            block_fmt = cursor.blockFormat()
+            if style_name == 'Code Block' and style.get('block_bg'):
+                block_fmt.setBackground(style['block_bg'])
+                block_fmt.setLeftMargin(10)
+                block_fmt.setRightMargin(10)
+                block_fmt.setTopMargin(5)
+                block_fmt.setBottomMargin(5)
             else:
+                # Reset block formatting for non-code blocks
+                block_fmt.setBackground(Qt.GlobalColor.transparent)
+                block_fmt.setLeftMargin(0)
+                block_fmt.setRightMargin(0)
                 block_fmt.setTopMargin(0)
                 block_fmt.setBottomMargin(0)
+                
+                # Add spacing for headings
+                if style_name.startswith('Heading') or style_name in ('Title', 'Subtitle'):
+                    block_fmt.setTopMargin(12)
+                    block_fmt.setBottomMargin(12)
             
             cursor.setBlockFormat(block_fmt)
             cursor.setCharFormat(fmt)
@@ -1890,12 +1911,14 @@ class MainWindow(QMainWindow):
         if self.search_bar.isVisible() and self.search_bar.replace_widget.isVisible():
             # If search bar and replace are already visible, hide the replace widget
             self.search_bar.replace_widget.setVisible(False)
+            self.search_bar.toggle_replace_btn.setChecked(False)  # ← Uncheck the button
             self.search_bar.search_input.setFocus()
         else:
             # Show search bar with replace
             self._show_search_bar()
             self.search_bar.show_replace = True
             self.search_bar.replace_widget.setVisible(True)
+            self.search_bar.toggle_replace_btn.setChecked(True)  # ← Check the button
             self.search_bar.replace_input.setFocus()
     
     def _replace_text(self):
