@@ -6,8 +6,9 @@
 from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
-from PyQt6.QtGui import QMouseEvent, QImage, QTextCharFormat, QMimeData, QTextDocument
-from PyQt6.QtCore import Qt, QByteArray, QBuffer, QIODevice, QUrl
+from PyQt6.QtGui import QMouseEvent, QImage, QTextDocument
+from PySide6.QtCore import QMimeData
+from PyQt6.QtCore import Qt, QBuffer, QIODevice, QUrl
 import webbrowser
 import re
 
