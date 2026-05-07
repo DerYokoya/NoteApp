@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import pyqtSignal
+from config.styles import StyleSheet  # Import the global styles
 
 class SearchBar(QWidget):
     """Custom search bar with find and replace functionality"""
@@ -17,6 +18,9 @@ class SearchBar(QWidget):
         self.show_replace = False
         
     def _setup_ui(self):
+        # Apply global stylesheet
+        self.setStyleSheet(StyleSheet.DARK_THEME)
+        
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(5, 5, 5, 5)
         main_layout.setSpacing(5)
@@ -33,10 +37,23 @@ class SearchBar(QWidget):
         font.setPointSize(10)
         self.search_input.setFont(font)
         self.search_input.setClearButtonEnabled(True)
+        
+        # Override background for search bar to match theme
+        self.search_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #3A3A3A;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                color: #E8E8E8;
+            }
+            QLineEdit:focus {
+                border: 1px solid #0078D4;
+            }
+        """)
 
         # Counter label
         self.counter_label = QLabel("0/0")
-        self.counter_label.setStyleSheet("color: gray; min-width: 50px;")
+        self.counter_label.setStyleSheet("color: #AAAAAA; min-width: 50px;")
         
         # Navigation buttons
         self.prev_btn = QPushButton("↑")
@@ -49,15 +66,16 @@ class SearchBar(QWidget):
         self.next_btn.setFixedHeight(28)
         self.next_btn.setToolTip("Next (F3)")
         
-        # Case sensitive checkbox
+        # Case sensitive checkbox - use standard QCheckBox styling from global theme
         self.case_sensitive_cb = QCheckBox("Aa")
         self.case_sensitive_cb.setToolTip("Match case")
         
-        # Toggle replace button
+        # Toggle replace button - MAKE IT CHECKABLE
         self.toggle_replace_btn = QPushButton("≡")
         self.toggle_replace_btn.setFixedWidth(35)
         self.toggle_replace_btn.setFixedHeight(28)
         self.toggle_replace_btn.setToolTip("Toggle Replace (Ctrl+H)")
+        self.toggle_replace_btn.setCheckable(True)  # Make it toggleable
 
         # Close button
         self.close_btn = QPushButton("×")
@@ -80,13 +98,26 @@ class SearchBar(QWidget):
         replace_layout.setSpacing(5)
         
         replace_label = QLabel("Replace:")
-        replace_label.setStyleSheet("color: gray;")
+        replace_label.setStyleSheet("color: #AAAAAA;")
         replace_label.setFixedWidth(60)
         
         self.replace_input = QLineEdit()
         self.replace_input.setPlaceholderText("Replace with...")
         self.replace_input.setFixedHeight(28)
         self.replace_input.setFont(font)
+        
+        # Override background for replace input
+        self.replace_input.setStyleSheet("""
+            QLineEdit {
+                background-color: #3A3A3A;
+                border: 1px solid #555555;
+                border-radius: 4px;
+                color: #E8E8E8;
+            }
+            QLineEdit:focus {
+                border: 1px solid #0078D4;
+            }
+        """)
         
         self.replace_btn = QPushButton("Replace")
         self.replace_btn.setFixedWidth(80)
@@ -121,6 +152,11 @@ class SearchBar(QWidget):
         """Toggle between find and find/replace mode"""
         self.show_replace = not self.show_replace
         self.replace_widget.setVisible(self.show_replace)
+        self.toggle_replace_btn.setChecked(self.show_replace)
+        
+        # Update button check state to match visibility
+        self.toggle_replace_btn.setChecked(self.show_replace)
+        
         if self.show_replace:
             self.replace_input.setFocus()
         else:
@@ -146,39 +182,3 @@ class SearchBar(QWidget):
         """Focus the search input and select all text"""
         self.search_input.setFocus()
         self.search_input.selectAll()
-
-
-class StatusBarWidget(QWidget):
-    """Custom status bar with document info"""
-    
-    def __init__(self):
-        super().__init__()
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(5, 2, 5, 2)
-        layout.setSpacing(15)
-        
-        self.file_label = QLabel("No file")
-        self.cursor_label = QLabel("Line 1, Col 1")
-        self.word_count_label = QLabel("0 words")
-        self.encoding_label = QLabel("UTF-8")
-        
-        layout.addWidget(self.file_label)
-        layout.addStretch()
-        layout.addWidget(self.word_count_label)
-        layout.addWidget(self.cursor_label)
-        layout.addWidget(self.encoding_label)
-    
-    def update_file(self, filepath: str):
-        """Update file path display"""
-        if filepath:
-            self.file_label.setText(filepath)
-        else:
-            self.file_label.setText("No file")
-    
-    def update_cursor(self, line: int, col: int):
-        """Update cursor position display"""
-        self.cursor_label.setText(f"Line {line}, Col {col}")
-    
-    def update_word_count(self, words: int, chars: int):
-        """Update word and character count"""
-        self.word_count_label.setText(f"{words} words, {chars} chars")

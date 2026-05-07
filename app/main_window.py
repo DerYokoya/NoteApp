@@ -2062,7 +2062,7 @@ class MainWindow(QMainWindow):
     # ========================================================================
     
     def _insert_code_block(self):
-        """Insert a code block with monospace formatting"""
+        """Insert a code block with monospace formatting, converting selected text if any"""
         current_tab = self._get_current_tab()
         if not current_tab:
             return
@@ -2084,10 +2084,49 @@ class MainWindow(QMainWindow):
         char_fmt.setForeground(QColor("#00FF00"))  # Green text
         char_fmt.setBackground(QColor("#1e1e1e"))  # Very dark background
         
-        # Insert code block
-        cursor.insertBlock(block_fmt)
-        cursor.setCharFormat(char_fmt)
-        cursor.insertText("# Enter your code here\n")
+        # Check if there's selected text
+        if cursor.hasSelection():
+            # Get the selection range
+            selection_start = cursor.selectionStart()
+            selection_end = cursor.selectionEnd()
+            
+            # Get the selected text (preserving line breaks)
+            selected_text = cursor.selectedText()
+            
+            # Replace the selected text with formatted version
+            # Move cursor to start of selection
+            cursor.setPosition(selection_start)
+            cursor.beginEditBlock()
+            
+            # Delete the selected text
+            cursor.setPosition(selection_end, QTextCursor.MoveMode.KeepAnchor)
+            cursor.removeSelectedText()
+            
+            # Now cursor is at the original start position
+            # Insert the code block
+            cursor.insertBlock(block_fmt)
+            cursor.setCharFormat(char_fmt)
+            
+            # Convert QTextEdit's paragraph separators (U+2029) back to newlines
+            # or just split and insert each line
+            lines = selected_text.split('\u2029')  # Unicode paragraph separator
+            
+            for i, line in enumerate(lines):
+                cursor.insertText(line)
+                if i < len(lines) - 1:  # Not the last line
+                    cursor.insertBlock()  # Insert new block for next line
+            
+            cursor.endEditBlock()
+            
+            # Add a newline after the code block for better separation
+            cursor.insertBlock()
+        else:
+            # No selection, insert placeholder code block
+            cursor.beginEditBlock()
+            cursor.insertBlock(block_fmt)
+            cursor.setCharFormat(char_fmt)
+            cursor.insertText("# Enter your code here\n")
+            cursor.endEditBlock()
         
         current_tab.text_edit.setTextCursor(cursor)
         current_tab.text_edit.setFocus()
