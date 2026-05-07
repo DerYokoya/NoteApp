@@ -12,9 +12,13 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
 ![Main window](screenshots/screenshot_main.png)
 ![Fonts panel](screenshots/screenshot_fonts.png)
 ![Text formatting](screenshots/screenshot_formatting.png)
+![Headings](screenshots/screenshot_headings.png)
+![Resize Image](screenshots/screenshot_resize.png)
 ![Table formatting](screenshots/screenshot_table_format.png)
 ![Image function available](screenshots/screenshot_image.png)
 ![Search bar](screenshots/screenshot_search.png)
+![Lits](screenshots/screenshot_lists)
+![Line Spacing](screenshots/screenshot_spacing)
 
 ---
 
