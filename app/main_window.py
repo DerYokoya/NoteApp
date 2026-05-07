@@ -274,8 +274,6 @@ class MainWindow(QMainWindow):
 
     def _create_formatting_toolbar(self):
         """Create two-row formatting toolbar that looks like a real app"""
-        # We use a plain QWidget with two QHBoxLayout rows instead of QToolBar
-        # so we have full control over spacing and appearance.
         self.format_toolbar = QWidget()
         self.format_toolbar.setObjectName("FormatToolbar")
         self.format_toolbar.setStyleSheet("""
@@ -287,7 +285,7 @@ class MainWindow(QMainWindow):
 
         outer = QVBoxLayout(self.format_toolbar)
         outer.setContentsMargins(6, 6, 6, 6)
-        outer.setSpacing(8)  # More spacing between rows
+        outer.setSpacing(8)
 
         row1 = QHBoxLayout()
         row1.setSpacing(2)
@@ -314,14 +312,13 @@ class MainWindow(QMainWindow):
 
         row1.addSpacing(4)
 
-        # Font size — editable combo with better visibility
+        # Font size
         self.size_combo = QComboBox()
         self.size_combo.setEditable(True)
-        self.size_combo.setFixedWidth(80)  # Increased from 58
+        self.size_combo.setFixedWidth(80)
         self.size_combo.setFixedHeight(28)
         self.size_combo.addItems(['8','9','10','11','12','14','16','18','20','24','28','36','48','72'])
         self.size_combo.setCurrentText('12')
-        # Make font size text larger and more readable
         sz_font = QFont()
         sz_font.setPointSize(10)
         self.size_combo.setFont(sz_font)
@@ -333,7 +330,7 @@ class MainWindow(QMainWindow):
         )
         row1.addWidget(self.size_combo)
 
-        sep(row1)
+        row1.addSpacing(4)
 
         # Text Styles dropdown
         self.style_combo = QComboBox()
@@ -349,10 +346,21 @@ class MainWindow(QMainWindow):
             'Heading 4',
             'Heading 5',
             'Heading 6',
-            'Code Block',  # ← Added Code Block option
+            'Code Block',
         ])
         self.style_combo.currentTextChanged.connect(self._apply_text_style)
         row1.addWidget(self.style_combo)
+
+        row1.addSpacing(4)
+
+        # Line Spacing dropdown
+        self.line_spacing_combo = QComboBox()
+        self.line_spacing_combo.setFixedWidth(100)
+        self.line_spacing_combo.setFixedHeight(28)
+        self.line_spacing_combo.addItems(['Single', '1.5x', 'Double'])
+        self.line_spacing_combo.setToolTip("Line Spacing")
+        self.line_spacing_combo.currentTextChanged.connect(self._on_line_spacing_changed)
+        row1.addWidget(self.line_spacing_combo)
 
         sep(row1)
 
@@ -367,7 +375,7 @@ class MainWindow(QMainWindow):
         italic_font = QFont("Georgia", 10)
         italic_font.setItalic(True)
         self.italic_btn = self._make_tool_btn("I", "Italic (Ctrl+I)", checkable=True,
-                                              font_override=italic_font)
+                                            font_override=italic_font)
         self.italic_btn.clicked.connect(self.toggle_italic)
         row1.addWidget(self.italic_btn)
 
@@ -375,7 +383,7 @@ class MainWindow(QMainWindow):
         ul_font = QFont("Arial", 9)
         ul_font.setUnderline(True)
         self.underline_btn = self._make_tool_btn("U", "Underline (Ctrl+U)", checkable=True,
-                                                 font_override=ul_font)
+                                                font_override=ul_font)
         self.underline_btn.clicked.connect(self.toggle_underline)
         row1.addWidget(self.underline_btn)
 
@@ -383,34 +391,34 @@ class MainWindow(QMainWindow):
         st_font = QFont("Arial", 9)
         st_font.setStrikeOut(True)
         self.strike_btn = self._make_tool_btn("S", "Strikethrough", checkable=True,
-                                              font_override=st_font)
+                                            font_override=st_font)
         self.strike_btn.clicked.connect(self.toggle_strikethrough)
         row1.addWidget(self.strike_btn)
 
         # Superscript
         sup_font = QFont("Arial", 8)
         self.superscript_btn = self._make_tool_btn("x²", "Superscript (Ctrl+Shift+P)", checkable=True,
-                                                   font_override=sup_font, width=32)
+                                                font_override=sup_font, width=32)
         self.superscript_btn.clicked.connect(self._apply_superscript)
         row1.addWidget(self.superscript_btn)
 
         # Subscript
         sub_font = QFont("Arial", 8)
         self.subscript_btn = self._make_tool_btn("x₂", "Subscript (Ctrl+Shift+B)", checkable=True,
-                                                 font_override=sub_font, width=32)
+                                                font_override=sub_font, width=32)
         self.subscript_btn.clicked.connect(self._apply_subscript)
         row1.addWidget(self.subscript_btn)
 
         # Code Block
         code_font = QFont("Courier", 8)
         self.code_block_btn = self._make_tool_btn("<>", "Code Block (Ctrl+`)", checkable=False,
-                                                  font_override=code_font, width=32)
+                                                font_override=code_font, width=32)
         self.code_block_btn.clicked.connect(self._insert_code_block)
         row1.addWidget(self.code_block_btn)
 
         sep(row1)
 
-        # Text colour — shows a small coloured underline like Word
+        # Text colour
         self.text_color_btn = QPushButton("A")
         self.text_color_btn.setFixedSize(32, 28)
         self.text_color_btn.setToolTip("Text Color")
@@ -448,9 +456,9 @@ class MainWindow(QMainWindow):
 
         row1.addStretch()
 
-        # ── ROW 2: Alignment | Lists | Table | Indent ──
+        # ── ROW 2: Alignment | Lists | Table | Indent (Line Spacing removed from here) ──
 
-        # Alignment buttons (mutually exclusive feel via checkable)
+        # Alignment buttons
         self.align_left_btn   = self._make_tool_btn("≡\u2190", "Align Left (Ctrl+L)",   checkable=True, width=32)
         self.align_center_btn = self._make_tool_btn("≡·",      "Center (Ctrl+E)",        checkable=True, width=32)
         self.align_right_btn  = self._make_tool_btn("≡\u2192", "Align Right (Ctrl+R)",  checkable=True, width=32)
@@ -461,7 +469,6 @@ class MainWindow(QMainWindow):
         self.align_right_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignRight))
         self.align_just_btn.clicked.connect(lambda: self.set_alignment(Qt.AlignmentFlag.AlignJustify))
 
-        # Use Unicode block characters for nicer alignment icons
         self.align_left_btn.setText("  ≡")
         self.align_center_btn.setText(" ≡ ")
         self.align_right_btn.setText("≡  ")
@@ -507,18 +514,7 @@ class MainWindow(QMainWindow):
 
         sep(row2)
 
-        # Line Spacing dropdown
-        self.line_spacing_combo = QComboBox()
-        self.line_spacing_combo.setFixedWidth(100)
-        self.line_spacing_combo.setFixedHeight(28)
-        self.line_spacing_combo.addItems(['Single', '1.5x', 'Double'])
-        self.line_spacing_combo.setToolTip("Line Spacing")
-        self.line_spacing_combo.currentTextChanged.connect(self._on_line_spacing_changed)
-        row2.addWidget(self.line_spacing_combo)
-
-        sep(row2)
-
-        # Table
+        # Table (Line spacing removed, now only table buttons here)
         self.table_btn = self._make_tool_btn("⊞ Table", "Insert Table (Ctrl+T)", width=72)
         self.table_btn.clicked.connect(self.insert_table)
         row2.addWidget(self.table_btn)
@@ -528,7 +524,7 @@ class MainWindow(QMainWindow):
         row2.addWidget(self.table_props_btn)
 
         row2.addStretch()
-    
+        
     def _create_tab_widget(self):
         """Create tab widget for multiple documents"""
         self.tab_widget = QTabWidget()
