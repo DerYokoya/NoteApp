@@ -58,7 +58,7 @@ class SearchBar(QWidget):
         self.toggle_replace_btn.setFixedWidth(35)
         self.toggle_replace_btn.setFixedHeight(28)
         self.toggle_replace_btn.setToolTip("Toggle Replace (Ctrl+H)")
-        
+
         # Close button
         self.close_btn = QPushButton("×")
         self.close_btn.setFixedWidth(35)

@@ -152,7 +152,6 @@ class MainWindow(QMainWindow):
         edit_menu.addAction(find_action)
         
         replace_action = QAction("&Replace...", self)
-        replace_action.setShortcut(QKeySequence("Ctrl+H"))
         replace_action.triggered.connect(self._show_search_bar_with_replace)
         edit_menu.addAction(replace_action)
         
@@ -387,6 +386,27 @@ class MainWindow(QMainWindow):
         self.strike_btn.clicked.connect(self.toggle_strikethrough)
         row1.addWidget(self.strike_btn)
 
+        # Superscript
+        sup_font = QFont("Arial", 8)
+        self.superscript_btn = self._make_tool_btn("x²", "Superscript (Ctrl+Shift+P)", checkable=True,
+                                                   font_override=sup_font, width=32)
+        self.superscript_btn.clicked.connect(self._apply_superscript)
+        row1.addWidget(self.superscript_btn)
+
+        # Subscript
+        sub_font = QFont("Arial", 8)
+        self.subscript_btn = self._make_tool_btn("x₂", "Subscript (Ctrl+Shift+B)", checkable=True,
+                                                 font_override=sub_font, width=32)
+        self.subscript_btn.clicked.connect(self._apply_subscript)
+        row1.addWidget(self.subscript_btn)
+
+        # Code Block
+        code_font = QFont("Courier", 8)
+        self.code_block_btn = self._make_tool_btn("<>", "Code Block (Ctrl+`)", checkable=False,
+                                                  font_override=code_font, width=32)
+        self.code_block_btn.clicked.connect(self._insert_code_block)
+        row1.addWidget(self.code_block_btn)
+
         sep(row1)
 
         # Text colour — shows a small coloured underline like Word
@@ -489,6 +509,17 @@ class MainWindow(QMainWindow):
         self.image_btn = self._make_tool_btn("🖼", "Insert Image", width=38)
         self.image_btn.clicked.connect(self._insert_image)
         row2.addWidget(self.image_btn)
+
+        sep(row2)
+
+        # Line Spacing dropdown
+        self.line_spacing_combo = QComboBox()
+        self.line_spacing_combo.setFixedWidth(100)
+        self.line_spacing_combo.setFixedHeight(28)
+        self.line_spacing_combo.addItems(['Single', '1.5x', 'Double'])
+        self.line_spacing_combo.setToolTip("Line Spacing")
+        self.line_spacing_combo.currentTextChanged.connect(self._on_line_spacing_changed)
+        row2.addWidget(self.line_spacing_combo)
 
         sep(row2)
 
@@ -1596,6 +1627,16 @@ class MainWindow(QMainWindow):
         cursor.setBlockFormat(block_fmt)
         current_tab.text_edit.setFocus()
 
+    def _on_line_spacing_changed(self, text: str):
+        """Handle line spacing combo change"""
+        spacing_map = {
+            'Single': 1.0,
+            '1.5x': 1.5,
+            'Double': 2.0
+        }
+        if text in spacing_map:
+            self._set_line_spacing(spacing_map[text])
+
     def _update_format_buttons(self):
         """Update formatting button states based on current cursor position"""
         current_tab = self._get_current_tab()
@@ -1605,7 +1646,8 @@ class MainWindow(QMainWindow):
         fmt = current_tab.text_edit.currentCharFormat()
         
         for btn in (self.bold_btn, self.italic_btn, self.underline_btn,
-                    self.strike_btn, self.font_combo, self.size_combo,
+                    self.strike_btn, self.superscript_btn, self.subscript_btn,
+                    self.font_combo, self.size_combo,
                     self.align_left_btn, self.align_center_btn,
                     self.align_right_btn, self.align_just_btn):
             btn.blockSignals(True)
@@ -1614,6 +1656,11 @@ class MainWindow(QMainWindow):
         self.italic_btn.setChecked(fmt.fontItalic())
         self.underline_btn.setChecked(fmt.fontUnderline())
         self.strike_btn.setChecked(fmt.fontStrikeOut())
+        
+        # Superscript & Subscript
+        va = fmt.verticalAlignment()
+        self.superscript_btn.setChecked(va == QTextCharFormat.VerticalAlignment.AlignSuperScript)
+        self.subscript_btn.setChecked(va == QTextCharFormat.VerticalAlignment.AlignSubScript)
         
         ps = fmt.fontPointSize()
         if ps and ps > 0:
@@ -1628,7 +1675,8 @@ class MainWindow(QMainWindow):
         self.align_just_btn.setChecked(alignment == Qt.AlignmentFlag.AlignJustify)
         
         for btn in (self.bold_btn, self.italic_btn, self.underline_btn,
-                    self.strike_btn, self.font_combo, self.size_combo,
+                    self.strike_btn, self.superscript_btn, self.subscript_btn,
+                    self.font_combo, self.size_combo,
                     self.align_left_btn, self.align_center_btn,
                     self.align_right_btn, self.align_just_btn):
             btn.blockSignals(False)
@@ -1835,11 +1883,17 @@ class MainWindow(QMainWindow):
     # ========================================================================
     
     def _show_search_bar_with_replace(self):
-        """Show search bar in replace mode"""
-        self._show_search_bar()
-        self.search_bar.show_replace = True
-        self.search_bar.replace_widget.setVisible(True)
-        self.search_bar.replace_input.setFocus()
+        """Toggle search bar replace mode (Ctrl+H: show/hide replace)"""
+        if self.search_bar.isVisible() and self.search_bar.replace_widget.isVisible():
+            # If search bar and replace are already visible, hide the replace widget
+            self.search_bar.replace_widget.setVisible(False)
+            self.search_bar.search_input.setFocus()
+        else:
+            # Show search bar with replace
+            self._show_search_bar()
+            self.search_bar.show_replace = True
+            self.search_bar.replace_widget.setVisible(True)
+            self.search_bar.replace_input.setFocus()
     
     def _replace_text(self):
         """Replace current match with replacement text"""
