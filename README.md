@@ -4,11 +4,11 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 
 ---
 
-## 🎥 Video Showcase
+## Video Showcase
 
 https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
 
-## 📸 Screenshots
+## Screenshots
 ![Main window](screenshots/screenshot_main.png)
 ![Fonts panel](screenshots/screenshot_fonts.png)
 ![Text formatting](screenshots/screenshot_formatting.png)
@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
 
 ---
 
-## 🧠 Overview
+## Overview
 
 NoteApp is a feature-rich desktop editor that supports multi-document workflows, structured content (tables, images), and persistent sessions.
 
@@ -26,7 +26,7 @@ The goal of this project was not just to replicate common editor features, but t
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 The application is structured around separation of concerns between UI, document state, and persistence:
 
@@ -48,7 +48,7 @@ The application is structured around separation of concerns between UI, document
 
 ---
 
-## ⚙️ Key Technical Decisions
+## Key Technical Decisions
 
 - **HTML as storage format**
   - Chosen to preserve rich text, images, and structure without designing a custom format
@@ -64,7 +64,7 @@ The application is structured around separation of concerns between UI, document
 
 ---
 
-## 🧩 Challenges & Solutions
+## Challenges & Solutions
 
 - **Rich text consistency**
   - Managing overlapping styles (bold, headings, colors) without conflicts required careful formatting control
@@ -80,7 +80,7 @@ The application is structured around separation of concerns between UI, document
 
 ---
 
-## 🚀 Features (Selected)
+## Features (Selected)
 
 ### Document System
 - Multi-tab editing with drag reordering
@@ -105,13 +105,85 @@ The application is structured around separation of concerns between UI, document
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## System Design
+
+The application is structured as a layered desktop system where user interactions flow from the UI into document logic and persistence.
+
+### High-Level Flow
+```
+[User Actions]
+    ↓
+(MainWindow)
+
+[MainWindow (app/main_window.py)]
+    ↓
+    ├─→ handles keyboard shortcuts
+    ├─→ handles menu clicks
+    ├─→ handles toolbar buttons
+    ├─→ handles drag & drop
+    ↓
+    ├─→ _setup_ui
+    ├─→ _create_menu_bar
+    ├─→ _create_formatting_toolbar
+    ├─→ _setup_shortcuts
+    └─→ _setup_timers
+    ↓
+    ├─→ owns tab list
+    ├─→ wires signals
+    └─→ drives UI state
+    ↓
+    ↓
+    ├───────────────┬────────────────┬────────────────┬────────────────┐
+    ↓               ↓                ↓                ↓
+[models/]     [services/]       [widgets/]        [config/]
+    ↓               ↓                ↓                ↓
+    │               │                │                │
+    │               │                │                └─→ constants (AppConfig, StyleSheet)
+    │               │                │
+    │               │                └─→ SearchBar, StatusBarWidget,
+    │               │                     TablePropertiesDialog,
+    │               │                     TextOrientationDialog
+    │               │
+    │               └─→ FileOperations (read/write/delete),
+    │                    SettingsManager, geometry, recent files
+    │
+    └─→ Document state, DocumentTab,
+         LinkAwareTextEdit,
+         is_modified, mark_saved,
+         get_content_html
+
+(models/services/widgets/config all interact with ↓)
+
+[Qt Document (in‑memory)]
+    ↓
+    ├─→ QTextDocument
+    ├─→ undo/redo stack
+    ├─→ rich‑text cursor
+    └─→ embedded images
+
+[Filesystem]
+    ↑   ↓
+    ├─→ .html
+    ├─→ .txt
+    ├─→ .bak backups
+    └─→ UTF‑8 / latin‑1 encoding
+
+[QSettings]
+    ↑   ↓
+    ├─→ window geometry
+    ├─→ open tabs
+    └─→ recent files
+
+```
+---
+
+## Keyboard Shortcuts
 
 A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ---
 
-## 📁 File Support
+## File Support
 
 - **HTML (.html)** — Full formatting and structure preserved  
 - **TXT (.txt)** — Plain text fallback  
@@ -119,7 +191,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ---
 
-## 🎯 What This Project Demonstrates
+## What This Project Demonstrates
 
 - Designing a **stateful desktop application**
 - Managing **multiple documents concurrently**
@@ -129,7 +201,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ---
 
-## 🔮 Future Improvements
+## Future Improvements
 
 - Plugin system for extensibility  
 - Performance optimization for large documents  
@@ -139,7 +211,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ---
 
-## ⚙️ Installation
+## Installation
 
 ### Requirements
 - Python 3.10+
