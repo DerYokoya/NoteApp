@@ -14,11 +14,11 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
     <tr>
       <td align="center">
         <img width="250" alt="Main Window" src="screenshots/screenshot_main.png" /><br />
-        <sub><b>Main window</b></sub>
+        <sub><b>Main Window</b></sub>
       </td>
       <td align="center">
         <img width="250" alt="Text Formatting" src="screenshots/screenshot_formatting.png" /><br />
-        <sub><b>Text formatting</b></sub>
+        <sub><b>Text Formatting</b></sub>
       </td>
       <td align="center">
         <img width="250" alt="Headings" src="screenshots/screenshot_headings.png" /><br />
@@ -32,11 +32,11 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
       </td>
       <td align="center">
         <img width="250" alt="Table Formatting" src="screenshots/screenshot_table_format.png" /><br />
-        <sub><b>Table formatting</b></sub>
+        <sub><b>Table Formatting</b></sub>
       </td>
       <td align="center">
         <img width="250" alt="Search Bar" src="screenshots/screenshot_search.png" /><br />
-        <sub><b>Search bar</b></sub>
+        <sub><b>Search Bar</b></sub>
       </td>
     </tr>
     <tr>
