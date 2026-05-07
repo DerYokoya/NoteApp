@@ -8,15 +8,53 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 
 https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
 
-## Screenshots
-![Main window](screenshots/screenshot_main.png)
-![Text formatting](screenshots/screenshot_formatting.png)
-![Headings](screenshots/screenshot_headings.png)
-![Resize Image](screenshots/screenshot_resize.png)
-![Table formatting](screenshots/screenshot_table_format.png)
-![Search bar](screenshots/screenshot_search.png)
-![Lits](screenshots/screenshot_lists.png)
-![Line Spacing](screenshots/screenshot_spacing.png)
+## Screenshots 
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img width="250" alt="Main window" src="screenshots/screenshot_main.png" /><br />
+        <sub><b>Main window</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="Text formatting" src="screenshots/screenshot_formatting.png" /><br />
+        <sub><b>Text formatting</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="Headings" src="screenshots/screenshot_headings.png" /><br />
+        <sub><b>Headings</b></sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img width="250" alt="Resize Image" src="screenshots/screenshot_resize.png" /><br />
+        <sub><b>Resize Image</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="Table formatting" src="screenshots/screenshot_table_format.png" /><br />
+        <sub><b>Table formatting</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="Search bar" src="screenshots/screenshot_search.png" /><br />
+        <sub><b>Search bar</b></sub>
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <img width="250" alt="Lists" src="screenshots/screenshot_lists.png" /><br />
+        <sub><b>Lists</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="Line Spacing" src="screenshots/screenshot_spacing.png" /><br />
+        <sub><b>Line Spacing</b></sub>
+      </td>
+      <td align="center">
+        <img width="250" alt="PDF Export Result" src="screenshots/pdf_export_result.png" /><br />
+        <sub><b>PDF Export</b></sub>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ---
 
