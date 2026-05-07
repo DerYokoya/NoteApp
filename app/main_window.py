@@ -3,7 +3,7 @@ from PyQt6.QtGui import *
 from PyQt6.QtCore import *
 from pathlib import Path
 from typing import Optional, List
-import webbrowser
+from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 
 from config.app_config import AppConfig
 from config.styles import StyleSheet
@@ -100,6 +100,18 @@ class MainWindow(QMainWindow):
         
         file_menu.addSeparator()
         
+        print_action = QAction("&Print...", self)
+        print_action.setShortcut(QKeySequence.StandardKey.Print)
+        print_action.triggered.connect(self._print_document)
+        file_menu.addAction(print_action)
+        
+        export_pdf_action = QAction("Export as &PDF...", self)
+        export_pdf_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
+        export_pdf_action.triggered.connect(self._export_to_pdf)
+        file_menu.addAction(export_pdf_action)
+        
+        file_menu.addSeparator()
+        
         close_tab_action = QAction("&Close Tab", self)
         close_tab_action.setShortcut(QKeySequence.StandardKey.Close)
         close_tab_action.triggered.connect(self.close_current_tab)
@@ -138,6 +150,11 @@ class MainWindow(QMainWindow):
         find_action.setShortcut(QKeySequence.StandardKey.Find)
         find_action.triggered.connect(self._show_search_bar)
         edit_menu.addAction(find_action)
+        
+        replace_action = QAction("&Replace...", self)
+        replace_action.setShortcut(QKeySequence("Ctrl+H"))
+        replace_action.triggered.connect(self._show_search_bar_with_replace)
+        edit_menu.addAction(replace_action)
         
         # Format menu
         format_menu = menu_bar.addMenu("F&ormat")
@@ -209,6 +226,41 @@ class MainWindow(QMainWindow):
         clear_format_action.setShortcut(QKeySequence("Ctrl+\\"))
         clear_format_action.triggered.connect(self.clear_formatting)
         format_menu.addAction(clear_format_action)
+        
+        format_menu.addSeparator()
+        
+        superscript_action = QAction("Superscript", self)
+        superscript_action.setShortcut(QKeySequence("Ctrl+Shift+P"))
+        superscript_action.triggered.connect(self._apply_superscript)
+        format_menu.addAction(superscript_action)
+        
+        subscript_action = QAction("Subscript", self)
+        subscript_action.setShortcut(QKeySequence("Ctrl+Shift+B"))
+        subscript_action.triggered.connect(self._apply_subscript)
+        format_menu.addAction(subscript_action)
+        
+        format_menu.addSeparator()
+        
+        code_block_action = QAction("Code Block", self)
+        code_block_action.setShortcut(QKeySequence("Ctrl+`"))
+        code_block_action.triggered.connect(self._insert_code_block)
+        format_menu.addAction(code_block_action)
+        
+        format_menu.addSeparator()
+        
+        line_spacing_menu = format_menu.addMenu("Line Spacing")
+        
+        single_spacing = QAction("Single", self)
+        single_spacing.triggered.connect(lambda: self._set_line_spacing(1.0))
+        line_spacing_menu.addAction(single_spacing)
+        
+        spacing_15 = QAction("1.5 Lines", self)
+        spacing_15.triggered.connect(lambda: self._set_line_spacing(1.5))
+        line_spacing_menu.addAction(spacing_15)
+        
+        double_spacing = QAction("Double", self)
+        double_spacing.triggered.connect(lambda: self._set_line_spacing(2.0))
+        line_spacing_menu.addAction(double_spacing)
     
     def _make_tool_btn(self, text: str, tooltip: str, checkable: bool = False,
                        width: int = 32, font_override: QFont = None) -> QPushButton:
@@ -498,6 +550,14 @@ class MainWindow(QMainWindow):
         
         find_prev_shortcut = QShortcut(QKeySequence("Shift+F3"), self)
         find_prev_shortcut.activated.connect(lambda: self._find_text(backward=True))
+        
+        # Replace signals
+        self.search_bar.replace_requested.connect(self._replace_text)
+        self.search_bar.replace_all_requested.connect(self._replace_all_text)
+        
+        # Toggle replace with Ctrl+H
+        replace_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
+        replace_shortcut.activated.connect(self._show_search_bar_with_replace)
     
     def _setup_timers(self):
         """Setup periodic timers for status updates"""
@@ -1769,3 +1829,245 @@ class MainWindow(QMainWindow):
                 self.close()
         else:
             super().keyPressEvent(event)
+    
+    # ========================================================================
+    # REPLACE FUNCTIONALITY
+    # ========================================================================
+    
+    def _show_search_bar_with_replace(self):
+        """Show search bar in replace mode"""
+        self._show_search_bar()
+        self.search_bar.show_replace = True
+        self.search_bar.replace_widget.setVisible(True)
+        self.search_bar.replace_input.setFocus()
+    
+    def _replace_text(self):
+        """Replace current match with replacement text"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        search_text = self.search_bar.get_search_text()
+        replace_text = self.search_bar.get_replace_text()
+        
+        if not search_text:
+            QMessageBox.warning(self, "Replace", "Please enter text to find")
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        
+        # Check if current selection matches search text
+        flags = QTextDocument.FindFlag(0)
+        if self.search_bar.is_case_sensitive():
+            flags |= QTextDocument.FindFlag.FindCaseSensitively
+        
+        if cursor.hasSelection():
+            selected = cursor.selectedText()
+            matches = (selected == search_text) if self.search_bar.is_case_sensitive() \
+                     else (selected.lower() == search_text.lower())
+            
+            if matches:
+                cursor.insertText(replace_text)
+                current_tab.text_edit.setTextCursor(cursor)
+                # Find next occurrence
+                self._find_text(backward=False)
+                return
+        
+        # If no selection, find first occurrence
+        if current_tab.text_edit.find(search_text, flags):
+            cursor = current_tab.text_edit.textCursor()
+            cursor.insertText(replace_text)
+            current_tab.text_edit.setTextCursor(cursor)
+            self._find_text(backward=False)
+    
+    def _replace_all_text(self):
+        """Replace all occurrences of search text"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        search_text = self.search_bar.get_search_text()
+        replace_text = self.search_bar.get_replace_text()
+        
+        if not search_text:
+            QMessageBox.warning(self, "Replace All", "Please enter text to find")
+            return
+        
+        # Move to start of document
+        cursor = current_tab.text_edit.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.Start)
+        current_tab.text_edit.setTextCursor(cursor)
+        
+        flags = QTextDocument.FindFlag(0)
+        if self.search_bar.is_case_sensitive():
+            flags |= QTextDocument.FindFlag.FindCaseSensitively
+        
+        count = 0
+        while current_tab.text_edit.find(search_text, flags):
+            cursor = current_tab.text_edit.textCursor()
+            cursor.insertText(replace_text)
+            current_tab.text_edit.setTextCursor(cursor)
+            count += 1
+        
+        if count > 0:
+            QMessageBox.information(
+                self, 
+                "Replace All", 
+                f"Replaced {count} occurrence{'s' if count != 1 else ''}"
+            )
+        else:
+            QMessageBox.information(self, "Replace All", "No matches found")
+        
+        self._highlight_all_matches(replace_text)
+    
+    # ========================================================================
+    # PRINT & PDF EXPORT
+    # ========================================================================
+    
+    def _print_document(self):
+        """Print the current document"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            QMessageBox.warning(self, "Print", "No document to print")
+            return
+        
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        print_dialog = QPrintDialog(printer, self)
+        
+        if print_dialog.exec() == QDialog.DialogCode.Accepted:
+            current_tab.text_edit.print(printer)
+            QMessageBox.information(self, "Print", "Document sent to printer successfully")
+    
+    def _export_to_pdf(self):
+        """Export current document to PDF"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            QMessageBox.warning(self, "Export PDF", "No document to export")
+            return
+        
+        default_filename = current_tab.current_file.stem if current_tab.current_file else "document"
+        
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export as PDF",
+            default_filename + ".pdf",
+            "PDF Files (*.pdf);;All Files (*)"
+        )
+        
+        if filename:
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(filename)
+            
+            current_tab.text_edit.print(printer)
+            QMessageBox.information(
+                self, 
+                "Success", 
+                f"PDF exported successfully to:\n{filename}"
+            )
+    
+    # ========================================================================
+    # SUPERSCRIPT & SUBSCRIPT
+    # ========================================================================
+    
+    def _apply_superscript(self):
+        """Toggle superscript formatting on selected text"""
+        current_tab = self._get_current_tab()
+        if current_tab:
+            fmt = current_tab.text_edit.currentCharFormat()
+            va = fmt.verticalAlignment()
+            
+            if va == QTextCharFormat.VerticalAlignment.AlignSuperScript:
+                fmt.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignNormal)
+            else:
+                fmt.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignSuperScript)
+            
+            current_tab.text_edit.mergeCurrentCharFormat(fmt)
+            current_tab.text_edit.setFocus()
+    
+    def _apply_subscript(self):
+        """Toggle subscript formatting on selected text"""
+        current_tab = self._get_current_tab()
+        if current_tab:
+            fmt = current_tab.text_edit.currentCharFormat()
+            va = fmt.verticalAlignment()
+            
+            if va == QTextCharFormat.VerticalAlignment.AlignSubScript:
+                fmt.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignNormal)
+            else:
+                fmt.setVerticalAlignment(QTextCharFormat.VerticalAlignment.AlignSubScript)
+            
+            current_tab.text_edit.mergeCurrentCharFormat(fmt)
+            current_tab.text_edit.setFocus()
+    
+    # ========================================================================
+    # CODE BLOCK FORMATTING
+    # ========================================================================
+    
+    def _insert_code_block(self):
+        """Insert a code block with monospace formatting"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        
+        # Create block format (paragraph style)
+        block_fmt = QTextBlockFormat()
+        block_fmt.setBackground(QColor("#2b2b2b"))  # Dark background
+        block_fmt.setLeftMargin(10)
+        block_fmt.setRightMargin(10)
+        block_fmt.setTopMargin(5)
+        block_fmt.setBottomMargin(5)
+        
+        # Create character format (text style)
+        char_fmt = QTextCharFormat()
+        char_fmt.setFontFamily("Courier New")
+        char_fmt.setFontPointSize(10)
+        char_fmt.setForeground(QColor("#00FF00"))  # Green text
+        char_fmt.setBackground(QColor("#1e1e1e"))  # Very dark background
+        
+        # Insert code block
+        cursor.insertBlock(block_fmt)
+        cursor.setCharFormat(char_fmt)
+        cursor.insertText("# Enter your code here\n")
+        
+        current_tab.text_edit.setTextCursor(cursor)
+        current_tab.text_edit.setFocus()
+    
+    # ========================================================================
+    # LINE SPACING CONTROL
+    # ========================================================================
+    
+    def _set_line_spacing(self, spacing: float):
+        """Set line spacing for current paragraph"""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        
+        cursor = current_tab.text_edit.textCursor()
+        
+        # If text is selected, apply to all blocks in selection
+        if cursor.hasSelection():
+            start_pos = cursor.selectionStart()
+            end_pos = cursor.selectionEnd()
+            
+            cursor.setPosition(start_pos)
+            block = cursor.block()
+            
+            while block.isValid() and block.position() <= end_pos:
+                cursor.setPosition(block.position())
+                fmt = cursor.blockFormat()
+                
+                # setLineHeight uses proportional height (1.0 = 100% = single spacing)
+                fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
+                cursor.setBlockFormat(fmt)
+                
+                block = block.next()
+        else:
+            # Apply to current block only
+            fmt = cursor.blockFormat()
+            fmt.setLineHeight(spacing * 100, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
+            cursor.setBlockFormat(fmt)
+        
+        current_tab.text_edit.setFocus()

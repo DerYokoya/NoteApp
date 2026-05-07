@@ -6,14 +6,14 @@
 from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
-from PyQt6.QtGui import QMouseEvent, QImage
+from PyQt6.QtGui import QMouseEvent, QImage, QTextCharFormat, QMimeData, QTextDocument
 from PyQt6.QtCore import Qt, QByteArray, QBuffer, QIODevice, QUrl
 import webbrowser
 import re
 
 
 class LinkAwareTextEdit(QTextEdit):
-    """Custom QTextEdit that opens links on Ctrl+Click"""
+    """Custom QTextEdit that opens links on Ctrl+Click and supports clipboard image paste"""
     
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse click - open links on Ctrl+Click"""
@@ -33,6 +33,30 @@ class LinkAwareTextEdit(QTextEdit):
         
         # Normal click handling
         super().mousePressEvent(event)
+    
+    def insertFromMimeData(self, source: QMimeData):
+        """Override to support pasting images from clipboard (Ctrl+V)"""
+        # Check if the mime data contains an image
+        if source.hasImage():
+            image = QImage(source.imageData())
+            if not image.isNull():
+                # Generate a unique image name
+                import uuid
+                image_name = f"clipboard_{uuid.uuid4().hex[:8]}.png"
+                
+                # Add image to document resources
+                doc = self.document()
+                doc.addResource(QTextDocument.ResourceType.ImageResource, 
+                               QUrl(image_name), image)
+                
+                # Insert the image into the document
+                cursor = self.textCursor()
+                cursor.insertImage(image_name)
+                self.setTextCursor(cursor)
+                return
+        
+        # Fall back to default paste behavior for non-image content
+        super().insertFromMimeData(source)
 
 
 class DocumentTab:
