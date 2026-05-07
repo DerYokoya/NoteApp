@@ -13,11 +13,11 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
   <table>
     <tr>
       <td align="center">
-        <img width="250" alt="Main window" src="screenshots/screenshot_main.png" /><br />
+        <img width="250" alt="Main Window" src="screenshots/screenshot_main.png" /><br />
         <sub><b>Main window</b></sub>
       </td>
       <td align="center">
-        <img width="250" alt="Text formatting" src="screenshots/screenshot_formatting.png" /><br />
+        <img width="250" alt="Text Formatting" src="screenshots/screenshot_formatting.png" /><br />
         <sub><b>Text formatting</b></sub>
       </td>
       <td align="center">
@@ -31,11 +31,11 @@ https://github.com/user-attachments/assets/1527588c-eb6e-4ff5-95ea-7a55aedc036c
         <sub><b>Resize Image</b></sub>
       </td>
       <td align="center">
-        <img width="250" alt="Table formatting" src="screenshots/screenshot_table_format.png" /><br />
+        <img width="250" alt="Table Formatting" src="screenshots/screenshot_table_format.png" /><br />
         <sub><b>Table formatting</b></sub>
       </td>
       <td align="center">
-        <img width="250" alt="Search bar" src="screenshots/screenshot_search.png" /><br />
+        <img width="250" alt="Search Bar" src="screenshots/screenshot_search.png" /><br />
         <sub><b>Search bar</b></sub>
       </td>
     </tr>
