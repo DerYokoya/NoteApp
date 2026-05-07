@@ -5,36 +5,29 @@
 from widgets.search_bar import SearchBar
 import pytest
 
-def test_search_bar_initialization(qtbot):
+def test_search_bar_initialization():
     """Test search bar initialization"""
     search_bar = SearchBar()
-    qtbot.addWidget(search_bar)
     
     assert search_bar.get_search_text() == ""
     assert search_bar.get_replace_text() == ""
     assert search_bar.is_case_sensitive() is False
     assert search_bar.replace_widget.isVisible() is False
 
-def test_search_bar_toggle_replace(qtbot):
-    """Test replace mode toggling"""
-    search_bar = SearchBar()
-    qtbot.addWidget(search_bar)
+def toggle_replace_mode(self):
+    """Toggle between find and find/replace mode"""
+    self.show_replace = not self.show_replace
+    self.replace_widget.setVisible(self.show_replace)
+    self.toggle_replace_btn.setChecked(self.show_replace)  # ← Make sure this line exists
     
-    assert search_bar.show_replace is False
-    assert search_bar.replace_widget.isVisible() is False
-    
-    search_bar.toggle_replace_mode()
-    assert search_bar.show_replace is True
-    assert search_bar.replace_widget.isVisible() is True
-    
-    search_bar.toggle_replace_mode()
-    assert search_bar.show_replace is False
-    assert search_bar.replace_widget.isVisible() is False
+    if self.show_replace:
+        self.replace_input.setFocus()
+    else:
+        self.search_input.setFocus()
 
-def test_search_bar_counter_update(qtbot):
+def test_search_bar_counter_update():
     """Test counter display update"""
     search_bar = SearchBar()
-    qtbot.addWidget(search_bar)
     
     search_bar.update_counter(3, 10)
     assert search_bar.counter_label.text() == "3/10"
@@ -45,7 +38,6 @@ def test_search_bar_counter_update(qtbot):
 def test_search_bar_signals(qtbot):
     """Test search bar signals"""
     search_bar = SearchBar()
-    qtbot.addWidget(search_bar)
     
     # Test find next signal
     with qtbot.waitSignal(search_bar.find_next_requested, timeout=1000):

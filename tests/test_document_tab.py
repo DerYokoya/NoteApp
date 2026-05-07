@@ -36,16 +36,18 @@ def test_document_modified_flag(qtbot):
 def test_document_content(qtbot):
     """Test getting and setting content"""
     doc = DocumentTab("Test")
-    
+
     # Test plain text
     doc.set_content("Hello World", is_html=False)
     assert doc.get_content_plain() == "Hello World"
     assert doc.get_content_html() is not None
-    
+
     # Test HTML content
     html_content = "<p><b>Bold</b> text</p>"
     doc.set_content(html_content, is_html=True)
-    assert "<b>Bold</b>" in doc.get_content_html()
+    # Qt adds extra HTML wrapper, check for the bold text instead
+    assert "Bold" in doc.get_content_html()
+    assert "font-weight:700" in doc.get_content_html()  # Qt represents bold as font-weight:700
 
 def test_document_file_path(qtbot, tmp_path):
     """Test file path handling"""

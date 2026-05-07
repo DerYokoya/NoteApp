@@ -70,12 +70,12 @@ class SearchBar(QWidget):
         self.case_sensitive_cb = QCheckBox("Aa")
         self.case_sensitive_cb.setToolTip("Match case")
         
-        # Toggle replace button - MAKE IT CHECKABLE
+        # Toggle replace button
         self.toggle_replace_btn = QPushButton("≡")
         self.toggle_replace_btn.setFixedWidth(35)
         self.toggle_replace_btn.setFixedHeight(28)
         self.toggle_replace_btn.setToolTip("Toggle Replace (Ctrl+H)")
-        self.toggle_replace_btn.setCheckable(True)  # Make it toggleable
+        self.toggle_replace_btn.setCheckable(True)  # Toggleable
 
         # Close button
         self.close_btn = QPushButton("×")
