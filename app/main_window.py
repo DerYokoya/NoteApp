@@ -1683,9 +1683,12 @@ class MainWindow(QMainWindow):
     
     # Search Methods
     def _show_search_bar(self):
-        """Show the search bar"""
-        self.search_bar.setVisible(True)
-        self.search_bar.focus_input()
+        """Toggle the search bar visibility"""
+        if self.search_bar.isVisible():
+            self._hide_search_bar()
+        else:
+            self.search_bar.setVisible(True)
+            self.search_bar.focus_input()
     
     def _hide_search_bar(self):
         """Hide the search bar and clear highlights"""
