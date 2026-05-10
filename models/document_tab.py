@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
 from PyQt6.QtGui import QMouseEvent, QImage, QTextDocument
-from PySide6.QtCore import QMimeData
+from PyQt6.QtCore import QMimeData
 from PyQt6.QtCore import Qt, QBuffer, QIODevice, QUrl
 import webbrowser
 import re
@@ -101,7 +101,7 @@ class DocumentTab:
         """Get document content as HTML with embedded images"""
         html = self.text_edit.toHtml()
         
-        # Find all src="..." values in the HTML and embed any resolvable images
+        # Find all src="..." values in the HTML
         doc = self.text_edit.document()
         
         def embed_image(match):
@@ -109,6 +109,7 @@ class DocumentTab:
             # Skip already-embedded base64 data URIs
             if src.startswith("data:"):
                 return match.group(0)
+            
             url = QUrl(src)
             # QTextDocument.ResourceType.ImageResource == 2 in PyQt6
             resource = doc.resource(2, url)
@@ -117,6 +118,7 @@ class DocumentTab:
                 image = resource
             elif hasattr(resource, 'value') and isinstance(resource.value(), QImage):
                 image = resource.value()
+            
             if image is not None and not image.isNull():
                 buf = QBuffer()
                 buf.open(QIODevice.OpenModeFlag.WriteOnly)
@@ -138,21 +140,83 @@ class DocumentTab:
         html = re.sub(r'<(td|th)\s+([^>]+)>', strip_cell_background, html, flags=re.IGNORECASE)
         
         return html
-    
-    def get_content_plain(self) -> str:
-        """Get document content as plain text"""
-        return self.text_edit.toPlainText()
-    
+
     def set_content(self, content: str, is_html: bool = False):
-        """Set document content, preserving undo stack"""
+        """Set document content, preserving undo stack and restoring images"""
         cursor = self.text_edit.textCursor()
         cursor.beginEditBlock()
         
         if is_html:
-            self.text_edit.setHtml(content)
+            # Extract base64 images from HTML before setting
+            import base64
+            from PyQt6.QtCore import QByteArray
+            from PyQt6.QtGui import QImageReader
+            from PyQt6.QtCore import QBuffer, QIODevice
+            
+            images = {}
+            
+            def extract_and_replace(match):
+                src = match.group(1)
+                if src.startswith('data:image/'):
+                    # Parse the data URI
+                    header, data = src.split(',', 1)
+                    # Extract image format (png, jpeg, etc.)
+                    image_format = header.split('/')[1].split(';')[0]
+                    
+                    # Decode base64 data
+                    try:
+                        image_data = base64.b64decode(data)
+                        
+                        # Create QImage from bytes
+                        buffer = QBuffer()
+                        buffer.setData(QByteArray(image_data))
+                        buffer.open(QIODevice.OpenModeFlag.ReadOnly)
+                        
+                        reader = QImageReader(buffer)
+                        reader.setAutoDetectImageFormat(True)
+                        image = reader.read()
+                        buffer.close()
+                        
+                        if not image.isNull():
+                            # Generate unique name
+                            import uuid
+                            img_name = f"restored_{uuid.uuid4().hex[:8]}.{image_format}"
+                            images[img_name] = image
+                            return f'src="{img_name}"'
+                    except Exception as e:
+                        print(f"Failed to decode image: {e}")
+                
+                return match.group(0)
+            
+            # Replace all base64 data URIs with placeholder names
+            processed_html = re.sub(r'src="([^"]*)"', extract_and_replace, content)
+            
+            # Set the processed HTML
+            self.text_edit.setHtml(processed_html)
+            
+            # Add extracted images as document resources
+            doc = self.text_edit.document()
+            for img_name, image in images.items():
+                doc.addResource(QTextDocument.ResourceType.ImageResource, 
+                            QUrl(img_name), image)
+            
+            # Force document to refresh
+            doc.adjustSize()
         else:
             self.text_edit.setPlainText(content)
             
         cursor.endEditBlock()
         self.text_edit.document().setModified(False)
         self._last_saved_content = content
+        
+    def get_content_plain(self) -> str:
+        """Get document content as plain text"""
+        return self.text_edit.toPlainText()
+    
+    def get_image_info(self):
+        """Debug method to get information about images in the document"""
+        doc = self.text_edit.document()
+        resources = []
+        # QTextDocument.ResourceType.ImageResource == 2
+        # Since we can't easily enumerate resources in Qt, this is just informational
+        return "Images are stored as resources within the QTextDocument"
