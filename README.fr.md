@@ -1,3 +1,5 @@
+**Français** | [English](./README.md)
+
 # NoteApp
 
 Un éditeur de texte enrichi modulaire pour ordinateur de bureau, développé avec Python et PyQt6, conçu pour étudier la manière dont les éditeurs de documents réels gèrent l'état, la mise en forme et l'interaction avec l'utilisateur.
