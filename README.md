@@ -1,3 +1,5 @@
+[Français](./README.fr.md) | **English**
+
 # NoteApp
 
 A modular, desktop rich-text editor built with Python and PyQt6, designed to explore how real-world document editors manage state, formatting, and user interaction.
