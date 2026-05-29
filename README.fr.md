@@ -246,7 +246,7 @@ L'application est structurée comme un système de bureau en couches où les int
 
 ## Raccourcis clavier
 
-Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.md](SHORTCUTS.md).
+Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md](SHORTCUTS.fr.md).
 
 ---
 
