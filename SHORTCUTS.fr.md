@@ -26,7 +26,7 @@
 
 ### Mise en forme du texte
 | Raccourci | Action |
-|------ ----|--------|
+|-----------|--------|
 | `Ctrl + B` | Gras |
 | `Ctrl + I` | Italique |
 | `Ctrl + U` | Souligné |
