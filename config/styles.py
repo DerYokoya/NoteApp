@@ -10,6 +10,25 @@ class StyleSheet:
     """Application-wide stylesheet"""
 
     @staticmethod
+    def toolbar_tokens(dark: bool) -> dict:
+        """Colors used by the formatting toolbar that can't be expressed in QSS selectors."""
+        if dark:
+            return {
+                "toolbar_bg":    "#383838",
+                "toolbar_border": "#222222",
+                "sep_color":     "#555555",
+                "clear_btn_fg":  "#CCCCCC",
+                "clear_btn_hover": "#5A5A5A",
+            }
+        return {
+            "toolbar_bg":    "#E8E8E8",
+            "toolbar_border": "#CCCCCC",
+            "sep_color":     "#BBBBBB",
+            "clear_btn_fg":  "#444444",
+            "clear_btn_hover": "#D0D0D0",
+        }
+
+    @staticmethod
     def get(dark: bool) -> str:
         """Return the appropriate theme stylesheet."""
         return StyleSheet.DARK_THEME if dark else StyleSheet.LIGHT_THEME

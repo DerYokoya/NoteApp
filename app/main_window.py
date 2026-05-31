@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         """Initialize the user interface"""
         self._dark_theme = self.settings_manager.get_theme()
+        self._toolbar_sep_color = StyleSheet.toolbar_tokens(self._dark_theme)["sep_color"]
         self.setStyleSheet(StyleSheet.get(self._dark_theme))
         self.setWindowTitle(AppConfig.APP_NAME)
         self.setMinimumSize(QSize(800, 600))
@@ -275,6 +276,7 @@ class MainWindow(QMainWindow):
         """Switch between dark and light themes and persist the choice."""
         self._dark_theme = not checked  # action checked = light theme active
         self.setStyleSheet(StyleSheet.get(self._dark_theme))
+        self._apply_toolbar_theme()
         self.theme_action.setText("Light Theme")
         self.settings_manager.save_theme(self._dark_theme)
 
@@ -289,16 +291,25 @@ class MainWindow(QMainWindow):
             btn.setFont(font_override)
         return btn
 
+    def _apply_toolbar_theme(self):
+        """Re-apply theme-sensitive styles on the formatting toolbar."""
+        t = StyleSheet.toolbar_tokens(self._dark_theme)
+        self.format_toolbar.setStyleSheet(f"""
+            QWidget#FormatToolbar {{
+                background-color: {t['toolbar_bg']};
+                border-bottom: 1px solid {t['toolbar_border']};
+            }}
+        """)
+        self._toolbar_sep_color = t["sep_color"]
+        self.clear_btn.setStyleSheet(f"""
+            QPushButton {{ font-weight: bold; color: {t['clear_btn_fg']}; }}
+            QPushButton:hover {{ background-color: {t['clear_btn_hover']}; }}
+        """)
+
     def _create_formatting_toolbar(self):
         """Create two-row formatting toolbar that looks like a real app"""
         self.format_toolbar = QWidget()
         self.format_toolbar.setObjectName("FormatToolbar")
-        self.format_toolbar.setStyleSheet("""
-            QWidget#FormatToolbar {
-                background-color: #383838;
-                border-bottom: 1px solid #222222;
-            }
-        """)
 
         outer = QVBoxLayout(self.format_toolbar)
         outer.setContentsMargins(6, 6, 6, 6)
@@ -314,7 +325,7 @@ class MainWindow(QMainWindow):
         def sep(row):
             line = QFrame()
             line.setFrameShape(QFrame.Shape.VLine)
-            line.setStyleSheet("color: #555555; max-width: 1px; margin: 2px 4px;")
+            line.setStyleSheet(f"color: {self._toolbar_sep_color}; max-width: 1px; margin: 2px 4px;")
             row.addWidget(line)
 
         # ── ROW 1: Font family | Font size | Bold Italic Underline Strike | Colors | Link ──
@@ -464,10 +475,6 @@ class MainWindow(QMainWindow):
 
         # Clear formatting
         self.clear_btn = self._make_tool_btn("Tx", "Clear Formatting (Ctrl+\\)", width=34)
-        self.clear_btn.setStyleSheet("""
-            QPushButton { font-weight: bold; color: #CCCCCC; }
-            QPushButton:hover { background-color: #5A5A5A; }
-        """)
         self.clear_btn.clicked.connect(self.clear_formatting)
         row1.addWidget(self.clear_btn)
 
@@ -541,7 +548,8 @@ class MainWindow(QMainWindow):
         row2.addWidget(self.table_props_btn)
 
         row2.addStretch()
-        
+        self._apply_toolbar_theme()
+
     def _create_tab_widget(self):
         """Create tab widget for multiple documents"""
         self.tab_widget = QTabWidget()
