@@ -34,7 +34,8 @@ class MainWindow(QMainWindow):
     
     def _setup_ui(self):
         """Initialize the user interface"""
-        self.setStyleSheet(StyleSheet.DARK_THEME)
+        self._dark_theme = self.settings_manager.get_theme()
+        self.setStyleSheet(StyleSheet.get(self._dark_theme))
         self.setWindowTitle(AppConfig.APP_NAME)
         self.setMinimumSize(QSize(800, 600))
         self.resize(QSize(1200, 700))
@@ -260,7 +261,23 @@ class MainWindow(QMainWindow):
         double_spacing = QAction("Double", self)
         double_spacing.triggered.connect(lambda: self._set_line_spacing(2.0))
         line_spacing_menu.addAction(double_spacing)
+
+        view_menu = menu_bar.addMenu("&View")
+
+        self.theme_action = QAction("Light Theme", self)
+        self.theme_action.setCheckable(True)
+        self.theme_action.setChecked(not self._dark_theme)
+        self.theme_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        self.theme_action.triggered.connect(self._toggle_theme)
+        view_menu.addAction(self.theme_action)
     
+    def _toggle_theme(self, checked: bool):
+        """Switch between dark and light themes and persist the choice."""
+        self._dark_theme = not checked  # action checked = light theme active
+        self.setStyleSheet(StyleSheet.get(self._dark_theme))
+        self.theme_action.setText("Light Theme")
+        self.settings_manager.save_theme(self._dark_theme)
+
     def _make_tool_btn(self, text: str, tooltip: str, checkable: bool = False,
                        width: int = 32, font_override: QFont = None) -> QPushButton:
         """Create a clean, consistently sized toolbar button"""

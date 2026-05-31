@@ -78,3 +78,11 @@ class SettingsManager:
         """Clear the saved open tabs"""
         self.settings.remove("open_tabs")
         self.settings.remove("active_tab_index")
+
+    def save_theme(self, dark: bool):
+        """Persist the user's theme preference."""
+        self.settings.setValue("appearance/dark_theme", dark)
+
+    def get_theme(self) -> bool:
+        """Return True for dark theme (default), False for light."""
+        return self.settings.value("appearance/dark_theme", True, type=bool)
