@@ -171,6 +171,7 @@ L'application est structurée autour de la séparation des préoccupations entre
 - Barre d'état (position du curseur, nombre de mots)
 - Flux de travail axé sur le clavier pour toutes les actions principales
 - Prise en charge de l'impression avec exportation au format PDF
+- **Basculement entre le thème clair et le thème sombre (Ctrl+Maj+D) ; les préférences sont conservées d'une session à l'autre**
 
 ---
 
@@ -276,7 +277,6 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 - **Optimisation des performances pour les documents volumineux**
 - **Refactorisation vers une architecture MVC/MVVM**
 - **Plus d'options d'exportation (outre le PDF, qui a déjà été implémenté)**
-- **Basculement entre les thèmes sombre et clair**
 - **Synchronisation et sauvegarde dans le cloud**
 - **Vérification orthographique**
 - **Récupération après enregistrement automatique**

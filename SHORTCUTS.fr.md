@@ -60,6 +60,11 @@
 | `Ctrl + 1` à `Ctrl + 8` | Passer à l'onglet 1-8 |
 | `Ctrl + 9` | Passer au dernier onglet |
 
+### Affichage
+| Raccourci | Action |
+|----------|--------|
+| `Ctrl + Maj + D` | Basculer entre le thème clair et le thème sombre |
+
 ### Interligne
 | Raccourci | Action |
 |----------|--------|

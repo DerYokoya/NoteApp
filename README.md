@@ -171,6 +171,7 @@ The application is structured around separation of concerns between UI, document
 - Status bar (cursor position, word count)
 - Keyboard-first workflow across all major actions
 - Print support with PDF export
+- **Light / Dark theme toggle (Ctrl+Shift+D), preference persisted across sessions**
 
 ---
 
@@ -276,7 +277,6 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 - **Performance optimization for large documents**
 - **Refactor more toward MVC/MVVM architecture**
 - **More Export options (besides PDF, which has been implemented)**
-- **Dark/Light theme toggle**
 - **Cloud sync and backup**
 - **Spell checking**
 - **Auto-save recovery**

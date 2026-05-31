@@ -60,6 +60,11 @@
 | `Ctrl + 1` through `Ctrl + 8` | Switch to Tab 1-8 |
 | `Ctrl + 9` | Switch to Last Tab |
 
+### View
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl + Shift + D` | Toggle Light / Dark Theme |
+
 ### Line Spacing
 | Shortcut | Action |
 |----------|--------|
