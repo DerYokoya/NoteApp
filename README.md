@@ -1,10 +1,18 @@
+[Français](./README.fr.md) | **English**
+
 # NoteApp
 
 A modular, desktop rich-text editor built with Python and PyQt6, designed to explore how real-world document editors manage state, formatting, and user interaction.
 
 ---
 
-## Video Showcase
+## App
+
+[![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.0.0)<br>
+
+---
+
+## Video Showcases
 
 ### General Showcase
 https://github.com/user-attachments/assets/d6096059-27d3-41dd-b621-1abeac8861bb
@@ -18,9 +26,11 @@ https://github.com/user-attachments/assets/6be404e3-19c1-41ae-9288-574617280206
 ### Image Insertion
 https://github.com/user-attachments/assets/6841fa4d-eaef-4139-94e4-6eda2a43821c
 
-### Images
+---
 
-## Screenshots 
+## Images
+
+### Screenshots 
 <div align="center">
   <table>
     <tr>
