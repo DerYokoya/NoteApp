@@ -92,10 +92,12 @@ L'objectif de ce projet n'était pas seulement de reproduire les fonctionnalité
 
 L'application est structurée autour de la séparation des préoccupations entre l'interface utilisateur, l'état des documents et la persistance :
 
-- **Couche UI (MainWindow / Widgets)**
-  - Gère la mise en page, les barres d'outils et les interactions utilisateur
-  - Transmet les actions à l'éditeur et à la logique du document
-  - Widgets personnalisés : SearchBar, StatusBarWidget, TablePropertiesDialog, TextOrientationDialog
+- **Couche d'interface utilisateur (MainWindow / Contrôleurs / Widgets)**
+  - `MainWindow` gère la mise en page, la gestion des onglets, les opérations d'E/S sur les fichiers, la recherche/remplacement et l'impression/PDF
+  - Les opérations de mise en forme sont déléguées à `FormattingController`
+  - La construction et la personnalisation de la barre d'outils sont déléguées à `ToolbarController`
+  - Les menus contextuels accessibles par un clic droit sont délégués à `ContextMenuController`
+  - Widgets personnalisés : SearchBar, StatusBarWidget, TablePropertiesDialog
 
 - **Couche Éditeur / Document**
   - Gère l'état du texte, le comportement du curseur et les opérations de mise en forme
@@ -118,6 +120,9 @@ L'application est structurée autour de la séparation des préoccupations entre
 
 - **Modèle de document multi-onglets**
   - Chaque onglet conserve un état indépendant pour éviter toute interférence entre les documents
+
+- **Modèle de contrôleur pour MainWindow**
+  - `MainWindow` comptait auparavant plus de 2 000 lignes ; la logique de mise en forme, la construction de la barre d'outils et la logique du menu contextuel ont été extraites dans des contrôleurs dédiés, ce qui permet de tester chaque aspect de manière indépendante et facilite son extension
 
 - **Conception axée sur le local**
   - Aucune dépendance externe ni intégration au cloud, ce qui garantit performances et fiabilité
@@ -194,7 +199,6 @@ L'application est structurée comme un système de bureau en couches où les int
     ↓
     ├─→ _setup_ui
     ├─→ _create_menu_bar
-    ├─→ _create_formatting_toolbar
     ├─→ _setup_shortcuts
     └─→ _setup_timers
     ↓
@@ -202,25 +206,36 @@ L'application est structurée comme un système de bureau en couches où les int
     ├─→ connecte les signaux
     └─→ gère l'état de l'interface utilisateur
     ↓
-    ↓
-    ├───────────────┬────────────────┬────────────────┬────────────────┐
-    ↓               ↓                ↓                ↓
-[models/]     [services/]       [widgets/]        [config/]
-    ↓               ↓                ↓                ↓
-    │               │                │                │
-    │               │                │                └─→ constantes (AppConfig, StyleSheet)
-    │               │                │
-    │               │                └─→ SearchBar, StatusBarWidget,
-    │               │                     TablePropertiesDialog,
-    │               │                     
-    │               │
-    │               └─→ Opérations sur les fichiers (lecture/écriture/suppression),
-    │                    Gestionnaire de paramètres (géométrie, fichiers récents, restauration de session)
-    │
-    └─→ État du document, DocumentTab,
-         LinkAwareTextEdit,
-         is_modified, mark_saved,
-         get_content_html
+    ├───────────────────────────────────────────────────────────────────┐
+    ↓                                                                   ↓
+[app/controllers/]                                               [models/] [services/] [widgets/] [config/]
+    ↓                                                                   ↓
+    ├─→ FormattingController                                            │
+    │     gras, italique, souligné, couleur,                            │
+    │     alignement, listes, tableaux,                                 │
+    │     liens, images, blocs de code                                  │
+    │                                                                   │
+    ├─→ ToolbarController                                               │
+    │     construit un widget de barre d'outils à deux lignes,          │
+    │     détient toutes les références aux boutons,                    │
+    │     applique le thème clair/foncé                                 │
+    │                                                                   │
+    └─→ ContextMenuController                                           │
+          menu contextuel, actions sur les lignes/colonnes du tableau   │
+          boîte de dialogue de redimensionnement d'image                │
+                                                                        │
+                                                                        ├─→ constantes (AppConfig, StyleSheet)
+                                                                        │
+                                                                        ├─→ SearchBar, StatusBarWidget,
+                                                                        │    TablePropertiesDialog
+                                                                        │
+                                                                        ├─→ Opérations sur les fichiers (lecture/écriture/suppression),
+                                                                        │    SettingsManager (géométrie, fichiers récents,
+                                                                        │    restauration de session)
+                                                                        │
+                                                                        └─→ DocumentTab, LinkAwareTextEdit,
+                                                                             is_modified, mark_saved,
+                                                                             get_content_html
 
 (modèles/services/widgets/config interagissent tous avec ↓)
 
@@ -268,18 +283,19 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 - Gestion de **contenu structuré (tableaux, médias)**
 - Création de **systèmes persistants (récupération de session)**
 - Création de **workflows d'interface utilisateur réactifs et intuitifs**
+- Utilisation du **modèle de contrôleur** pour décomposer une grande classe d'interface utilisateur en unités ciblées et testables
 
 ---
 
 ## Améliorations futures
 
-- **Système de plugins pour l'extensibilité**
+- **Système de plugins**
 - **Optimisation des performances pour les documents volumineux**
-- **Refactorisation vers une architecture MVC/MVVM**
-- **Plus d'options d'exportation (outre le PDF, qui a déjà été implémenté)**
+- **Prise en charge du format .docx via python-docx**
+- **Options d'exportation supplémentaires (outre le format PDF, déjà implémenté)**
 - **Synchronisation et sauvegarde dans le cloud**
 - **Vérification orthographique**
-- **Récupération après enregistrement automatique**
+- **Récupération après une sauvegarde automatique**
 
 ---
 

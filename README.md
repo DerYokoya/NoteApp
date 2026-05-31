@@ -92,10 +92,12 @@ The goal of this project was not just to replicate common editor features, but t
 
 The application is structured around separation of concerns between UI, document state, and persistence:
 
-- **UI Layer (MainWindow / Widgets)**
-  - Handles layout, toolbars, and user interactions
-  - Dispatches actions to the editor and document logic
-  - Custom widgets: SearchBar, StatusBarWidget, TablePropertiesDialog, TextOrientationDialog
+- **UI Layer (MainWindow / Controllers / Widgets)**
+  - `MainWindow` handles layout, tab management, file I/O, search/replace, and print/PDF
+  - Formatting operations are delegated to `FormattingController`
+  - Toolbar construction and theming are delegated to `ToolbarController`
+  - Right-click context menus are delegated to `ContextMenuController`
+  - Custom widgets: SearchBar, StatusBarWidget, TablePropertiesDialog
 
 - **Editor / Document Layer**
   - Manages text state, cursor behavior, and formatting operations
@@ -118,6 +120,9 @@ The application is structured around separation of concerns between UI, document
 
 - **Multi-tab document model**
   - Each tab maintains independent state to avoid cross-document interference
+
+- **Controller pattern for MainWindow**
+  - `MainWindow` was previously 2000+ lines; formatting logic, toolbar construction, and context menu logic have been extracted into dedicated controllers, making each concern independently testable and easier to extend
 
 - **Local-first design**
   - No external dependencies or cloud integration, which ensures performance and reliability
@@ -194,7 +199,6 @@ The application is structured as a layered desktop system where user interaction
     ↓
     ├─→ _setup_ui
     ├─→ _create_menu_bar
-    ├─→ _create_formatting_toolbar
     ├─→ _setup_shortcuts
     └─→ _setup_timers
     ↓
@@ -202,27 +206,38 @@ The application is structured as a layered desktop system where user interaction
     ├─→ wires signals
     └─→ drives UI state
     ↓
-    ↓
-    ├───────────────┬────────────────┬────────────────┬────────────────┐
-    ↓               ↓                ↓                ↓
-[models/]     [services/]       [widgets/]        [config/]
-    ↓               ↓                ↓                ↓
-    │               │                │                │
-    │               │                │                └─→ constants (AppConfig, StyleSheet)
-    │               │                │
-    │               │                └─→ SearchBar, StatusBarWidget,
-    │               │                     TablePropertiesDialog,
-    │               │                     
-    │               │
-    │               └─→ FileOperations (read/write/delete),
-    │                    SettingsManager (geometry, recent files, session restore)
-    │
-    └─→ Document state, DocumentTab,
-         LinkAwareTextEdit,
-         is_modified, mark_saved,
-         get_content_html
+    ├───────────────────────────────────────────────────────────────────┐
+    ↓                                                                   ↓
+[app/controllers/]                                               [models/] [services/] [widgets/] [config/]
+    ↓                                                                   ↓
+    ├─→ FormattingController                                            │
+    │     bold, italic, underline, color,                               │
+    │     alignment, lists, tables,                                     │
+    │     links, images, code blocks                                    │
+    │                                                                   │
+    ├─→ ToolbarController                                               │
+    │     builds two-row toolbar widget,                                │
+    │     owns all button references,                                   │
+    │     applies light/dark theme                                      │
+    │                                                                   │
+    └─→ ContextMenuController                                           │
+          right-click menu, table row/col                               │
+          actions, image resize dialog                                  │
+                                                                        │
+                                                                        ├─→ constants (AppConfig, StyleSheet)
+                                                                        │
+                                                                        ├─→ SearchBar, StatusBarWidget,
+                                                                        │    TablePropertiesDialog
+                                                                        │
+                                                                        ├─→ FileOperations (read/write/delete),
+                                                                        │    SettingsManager (geometry, recent files,
+                                                                        │    session restore)
+                                                                        │
+                                                                        └─→ DocumentTab, LinkAwareTextEdit,
+                                                                             is_modified, mark_saved,
+                                                                             get_content_html
 
-(models/services/widgets/config all interact with ↓)
+(all layers interact with ↓)
 
 [Qt Document (in‑memory)]
     ↓
@@ -268,6 +283,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 - Handling **structured content (tables, media)**
 - Building **persistent systems (session recovery)**
 - Creating **responsive and intuitive UI workflows**
+- Applying the **controller pattern** to decompose a large UI class into focused, testable units
 
 ---
 
@@ -275,7 +291,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 - **Plugin system for extensibility**
 - **Performance optimization for large documents**
-- **Refactor more toward MVC/MVVM architecture**
+- **.docx support via python-docx**
 - **More Export options (besides PDF, which has been implemented)**
 - **Cloud sync and backup**
 - **Spell checking**
