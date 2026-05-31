@@ -268,7 +268,7 @@ class MainWindow(QMainWindow):
         self.theme_action = QAction("Light Theme", self)
         self.theme_action.setCheckable(True)
         self.theme_action.setChecked(not self._dark_theme)
-        self.theme_action.setShortcut(QKeySequence("Ctrl+Shift+L"))
+        self.theme_action.setShortcut(QKeySequence("Ctrl+Shift+D"))
         self.theme_action.triggered.connect(self._toggle_theme)
         view_menu.addAction(self.theme_action)
     
