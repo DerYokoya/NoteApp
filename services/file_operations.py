@@ -46,24 +46,64 @@ class FileOperations:
     @staticmethod
     def write_file(filepath: Path, content: str, as_html: bool = True):
         """
-        Write content to file safely
+        Write content to file safely.
+        A .bak is created before writing so the original is recoverable if the
+        write fails.  The backup is removed automatically on success so old
+        backups never accumulate silently.
         Raises: IOError
         """
-        # Create backup if file exists
+        backup_path = None
+
+        # Create backup if file exists (best-effort safety net during write)
         if filepath.exists():
             backup_path = filepath.with_suffix(filepath.suffix + '.bak')
             try:
                 backup_path.write_text(filepath.read_text(encoding='utf-8'), encoding='utf-8')
             except Exception:
-                pass  # Backup is best-effort
-        
+                backup_path = None  # Backup failed; don't try to delete it later
+
         # Write new content
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
         except Exception as e:
             raise IOError(f"Failed to write file: {e}")
-    
+
+        # Write succeeded — remove the now-redundant backup
+        if backup_path is not None:
+            try:
+                backup_path.unlink(missing_ok=True)
+            except Exception:
+                pass  # Non-critical; leave the stale backup rather than masking the save
+
+    @staticmethod
+    def cleanup_backups(target: Path) -> int:
+        """
+        Delete .bak files associated with *target*.
+
+        If *target* is a file, only its own .bak sibling is removed.
+        If *target* is a directory, all *.bak files anywhere under it are removed.
+
+        Returns the number of backup files deleted.
+        """
+        deleted = 0
+        if target.is_dir():
+            for bak in target.rglob('*.bak'):
+                try:
+                    bak.unlink()
+                    deleted += 1
+                except Exception:
+                    pass
+        else:
+            bak = target.with_suffix(target.suffix + '.bak')
+            if bak.exists():
+                try:
+                    bak.unlink()
+                    deleted += 1
+                except Exception:
+                    pass
+        return deleted
+
     @staticmethod
     def delete_file(filepath: Path):
         """
