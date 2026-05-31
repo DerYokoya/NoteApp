@@ -305,6 +305,8 @@ class MainWindow(QMainWindow):
             QPushButton {{ font-weight: bold; color: {t['clear_btn_fg']}; }}
             QPushButton:hover {{ background-color: {t['clear_btn_hover']}; }}
         """)
+        self._refresh_text_color_btn()
+        self._refresh_bg_color_btn()
 
     def _create_formatting_toolbar(self):
         """Create two-row formatting toolbar that looks like a real app"""
@@ -996,18 +998,19 @@ class MainWindow(QMainWindow):
     def _refresh_text_color_btn(self):
         """Update text color button to show current color as underline"""
         c = self._current_text_color.name()
+        t = StyleSheet.toolbar_tokens(self._dark_theme)
         self.text_color_btn.setStyleSheet(f"""
             QPushButton {{
                 font-weight: bold;
                 font-size: 11pt;
                 border-bottom: 3px solid {c};
-                background-color: #4A4A4A;
-                border-top: 1px solid #555;
-                border-left: 1px solid #555;
-                border-right: 1px solid #555;
+                background-color: {t['swatch_bg']};
+                border-top: 1px solid {t['swatch_border']};
+                border-left: 1px solid {t['swatch_border']};
+                border-right: 1px solid {t['swatch_border']};
             }}
-            QPushButton:hover {{ background-color: #5A5A5A; }}
-            QPushButton:pressed {{ background-color: #353535; }}
+            QPushButton:hover {{ background-color: {t['swatch_hover']}; }}
+            QPushButton:pressed {{ background-color: {t['swatch_pressed']}; }}
         """)
     
     def change_background_color(self):
@@ -1029,19 +1032,20 @@ class MainWindow(QMainWindow):
         c = self._current_bg_color.name()
         lum = self._current_bg_color.lightnessF()
         text_color = "#000000" if lum > 0.5 else "#FFFFFF"
+        t = StyleSheet.toolbar_tokens(self._dark_theme)
         self.bg_color_btn.setStyleSheet(f"""
             QPushButton {{
                 font-weight: bold;
                 font-size: 9pt;
                 border-bottom: 3px solid {c};
-                background-color: #4A4A4A;
-                border-top: 1px solid #555;
-                border-left: 1px solid #555;
-                border-right: 1px solid #555;
+                background-color: {t['swatch_bg']};
+                border-top: 1px solid {t['swatch_border']};
+                border-left: 1px solid {t['swatch_border']};
+                border-right: 1px solid {t['swatch_border']};
                 color: {text_color};
             }}
-            QPushButton:hover {{ background-color: #5A5A5A; }}
-            QPushButton:pressed {{ background-color: #353535; }}
+            QPushButton:hover {{ background-color: {t['swatch_hover']}; }}
+            QPushButton:pressed {{ background-color: {t['swatch_pressed']}; }}
         """)
     
     def add_link(self):

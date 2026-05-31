@@ -14,18 +14,26 @@ class StyleSheet:
         """Colors used by the formatting toolbar that can't be expressed in QSS selectors."""
         if dark:
             return {
-                "toolbar_bg":    "#383838",
-                "toolbar_border": "#222222",
-                "sep_color":     "#555555",
-                "clear_btn_fg":  "#CCCCCC",
+                "toolbar_bg":      "#383838",
+                "toolbar_border":  "#222222",
+                "sep_color":       "#555555",
+                "clear_btn_fg":    "#CCCCCC",
                 "clear_btn_hover": "#5A5A5A",
+                "swatch_bg":       "#4A4A4A",
+                "swatch_border":   "#555555",
+                "swatch_hover":    "#5A5A5A",
+                "swatch_pressed":  "#353535",
             }
         return {
-            "toolbar_bg":    "#E8E8E8",
-            "toolbar_border": "#CCCCCC",
-            "sep_color":     "#BBBBBB",
-            "clear_btn_fg":  "#444444",
+            "toolbar_bg":      "#E8E8E8",
+            "toolbar_border":  "#CCCCCC",
+            "sep_color":       "#BBBBBB",
+            "clear_btn_fg":    "#444444",
             "clear_btn_hover": "#D0D0D0",
+            "swatch_bg":       "#F0F0F0",
+            "swatch_border":   "#BBBBBB",
+            "swatch_hover":    "#DCDCDC",
+            "swatch_pressed":  "#C8C8C8",
         }
 
     @staticmethod
