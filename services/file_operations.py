@@ -1,10 +1,32 @@
 from pathlib import Path
+from PyQt6.QtCore import QObject, pyqtSignal
 from config.app_config import AppConfig
 
 # ============================================================================
 # File Operations Handler
 # handles disk I/O
 # ============================================================================
+
+class FileLoadWorker(QObject):
+    """
+    Runs FileOperations.read_file() on a background thread so large files
+    don't block the UI. Create one per load, move it to a QThread, and
+    start the thread - do not call run() directly.
+    """
+    finished = pyqtSignal(str, bool)   # content, is_html
+    failed = pyqtSignal(str)           # error message
+
+    def __init__(self, filepath: Path):
+        super().__init__()
+        self.filepath = filepath
+
+    def run(self):
+        try:
+            content, is_html = FileOperations.read_file(self.filepath)
+            self.finished.emit(content, is_html)
+        except Exception as e:
+            self.failed.emit(str(e))
+
 
 class FileOperations:
     """Handles all file I/O operations with proper error handling"""

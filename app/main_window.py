@@ -8,7 +8,7 @@ from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from config.app_config import AppConfig
 from config.styles import StyleSheet
 from models.document_tab import DocumentTab
-from services.file_operations import FileOperations
+from services.file_operations import FileOperations, FileLoadWorker
 from services.settings_manager import SettingsManager
 from widgets.search_bar import SearchBar
 from widgets.status_bar import StatusBarWidget
@@ -29,6 +29,9 @@ class MainWindow(QMainWindow):
         self.tab_counter = 1
         self.settings_manager = SettingsManager()
         self._is_restoring_session = False
+        self._restore_pending = 0
+        self._restore_active_index = -1
+        self._load_threads: dict = {}  # filepath -> (QThread, FileLoadWorker), keeps them alive
 
         self._setup_ui()
         self._setup_shortcuts()
@@ -139,6 +142,11 @@ class MainWindow(QMainWindow):
         close_tab_action.setShortcut(QKeySequence.StandardKey.Close)
         close_tab_action.triggered.connect(self.close_current_tab)
         file_menu.addAction(close_tab_action)
+
+        duplicate_tab_action = QAction("&Duplicate Tab", self)
+        duplicate_tab_action.setShortcut(QKeySequence("Ctrl+Shift+K"))
+        duplicate_tab_action.triggered.connect(self.duplicate_tab)
+        file_menu.addAction(duplicate_tab_action)
 
         file_menu.addSeparator()
 
@@ -301,6 +309,27 @@ class MainWindow(QMainWindow):
         self.theme_action.setText("Light Theme")
         self.settings_manager.save_theme(self._dark_theme)
 
+    def duplicate_tab(self):
+        """Duplicate the current tab's content into a new tab."""
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+        html = current_tab.get_content_html()
+        new_name = (current_tab.name + " (copy)") if not current_tab.current_file \
+                   else (current_tab.current_file.stem + " (copy)")
+        doc_tab = DocumentTab(new_name)
+        doc_tab.set_content(html, is_html=True)
+        # set_content() marks the document unmodified, but a duplicate is a
+        # new, never-saved document - flag it modified so the unsaved (●)
+        # indicator shows immediately, same as any other new tab.
+        doc_tab.text_edit.document().setModified(True)
+        self._wire_tab(doc_tab)
+        index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
+        self.tabs.append(doc_tab)
+        self.tab_widget.setCurrentIndex(index)
+        self.tab_counter += 1
+        doc_tab.text_edit.setFocus()
+
     def _create_tab_widget(self):
         """Create tab widget for multiple documents"""
         self.tab_widget = QTabWidget()
@@ -356,10 +385,31 @@ class MainWindow(QMainWindow):
         replace_shortcut.activated.connect(self._show_search_bar_with_replace)
 
     def _setup_timers(self):
-        """Setup periodic timers for status updates"""
+        """Setup periodic timers for status updates and autosave"""
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self._update_status_bar)
         self.status_timer.start(100)
+
+        self.autosave_timer = QTimer()
+        self.autosave_timer.timeout.connect(self._autosave_all)
+        self.autosave_timer.start(AppConfig.AUTOSAVE_INTERVAL_MS)
+
+    def _autosave_all(self):
+        """Autosave all modified tabs that have an existing file path"""
+        saved_any = False
+        for tab in self.tabs:
+            if tab.is_modified and tab.current_file and tab.current_file.exists():
+                try:
+                    is_html = tab.current_file.suffix.lower() == '.html'
+                    content = tab.get_content_html() if is_html else tab.get_content_plain()
+                    FileOperations.write_file(tab.current_file, content, is_html)
+                    tab.mark_saved()
+                    self._update_tab_title(tab)
+                    saved_any = True
+                except Exception:
+                    pass  # Silent fail — autosave is best-effort
+        if saved_any:
+            self.statusBar().showMessage("Autosaved", 2000)
 
     def _restore_settings(self):
         """Restore saved application settings"""
@@ -372,23 +422,34 @@ class MainWindow(QMainWindow):
 
     def _restore_session(self):
         """Restore previously open tabs from last session"""
-        self._is_restoring_session = True
         open_tabs, active_index = self.settings_manager.get_open_tabs()
 
-        if open_tabs:
-            for filepath in open_tabs:
-                try:
-                    self._load_file_async(Path(filepath))
-                except Exception as e:
-                    print(f"Failed to restore tab: {filepath} - {e}")
-
-            if 0 <= active_index < self.tab_widget.count():
-                self.tab_widget.setCurrentIndex(active_index)
-
-        if self.tab_widget.count() == 0:
+        if not open_tabs:
             self.new_tab()
+            return
+
+        # Loads happen on background threads, so we can't just check
+        # tab_widget.count() right after kicking them off - track how many
+        # are still outstanding and finish restoring once they've all
+        # reported back (success or failure).
+        self._is_restoring_session = True
+        self._restore_pending = len(open_tabs)
+        self._restore_active_index = active_index
+
+        for filepath in open_tabs:
+            self._load_file_async(Path(filepath))
+
+    def _on_restore_step_done(self):
+        """Called once per restored tab (success or failure) during session restore"""
+        self._restore_pending -= 1
+        if self._restore_pending > 0:
+            return
 
         self._is_restoring_session = False
+        if 0 <= self._restore_active_index < self.tab_widget.count():
+            self.tab_widget.setCurrentIndex(self._restore_active_index)
+        if self.tab_widget.count() == 0:
+            self.new_tab()
 
     def _save_session(self):
         """Save currently open tabs for next session"""
@@ -508,40 +569,66 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"File already open: {file_path.name}", 3000)
                 return
 
-        QTimer.singleShot(0, lambda: self._load_file_async(file_path))
+        self._load_file_async(file_path)
 
     def _load_file_async(self, filepath: Path):
-        """Load file asynchronously to avoid UI blocking"""
-        try:
-            self.statusBar().showMessage(f"Loading {filepath.name}...")
-            QApplication.processEvents()
+        """
+        Load a file on a background QThread so reading it never blocks the
+        UI, regardless of file size. Completion/failure are delivered back
+        via signals and handled on the main thread.
+        """
+        if str(filepath) in self._load_threads:
+            # Already loading this file; don't start a second read.
+            return
 
-            content, is_html = FileOperations.read_file(filepath)
+        self.statusBar().showMessage(f"Loading {filepath.name}...")
 
-            doc_tab = DocumentTab()
-            doc_tab.set_content(content, is_html)
-            doc_tab.current_file = filepath
+        thread = QThread(self)
+        worker = FileLoadWorker(filepath)
+        worker.moveToThread(thread)
 
-            self._wire_tab(doc_tab)
+        thread.started.connect(worker.run)
+        worker.finished.connect(lambda content, is_html: self._on_file_loaded(filepath, content, is_html))
+        worker.failed.connect(lambda msg: self._on_file_load_failed(filepath, msg))
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(lambda: self._load_threads.pop(str(filepath), None))
 
-            index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
-            self.tabs.append(doc_tab)
-            self.tab_widget.setCurrentIndex(index)
+        self._load_threads[str(filepath)] = (thread, worker)
+        thread.start()
 
-            self.settings_manager.add_recent_file(str(filepath))
-            self._update_recent_files_menu()
+    def _on_file_loaded(self, filepath: Path, content: str, is_html: bool):
+        """Handle a successful background file load (runs on the main thread)."""
+        doc_tab = DocumentTab()
+        doc_tab.set_content(content, is_html)
+        doc_tab.current_file = filepath
 
-            if not self._is_restoring_session:
-                self._save_session()
+        self._wire_tab(doc_tab)
 
-            self.statusBar().showMessage(f"Opened: {filepath.name}", 3000)
+        index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
+        self.tabs.append(doc_tab)
+        self.tab_widget.setCurrentIndex(index)
 
-        except Exception as e:
-            QMessageBox.critical(
-                self, "Error Opening File",
-                f"Could not open file:\n{filepath}\n\nError: {str(e)}"
-            )
-            self.statusBar().clearMessage()
+        self.settings_manager.add_recent_file(str(filepath))
+        self._update_recent_files_menu()
+
+        if self._is_restoring_session:
+            self._on_restore_step_done()
+        else:
+            self._save_session()
+
+        self.statusBar().showMessage(f"Opened: {filepath.name}", 3000)
+
+    def _on_file_load_failed(self, filepath: Path, message: str):
+        """Handle a failed background file load (runs on the main thread)."""
+        QMessageBox.critical(
+            self, "Error Opening File",
+            f"Could not open file:\n{filepath}\n\nError: {message}"
+        )
+        self.statusBar().clearMessage()
+
+        if self._is_restoring_session:
+            self._on_restore_step_done()
 
     def save(self):
         """Save the current document"""
