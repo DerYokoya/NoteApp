@@ -9,6 +9,7 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 ## App
 
 [![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.1.0)<br>
+[![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
 
 ---
 
@@ -301,7 +302,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 ## Testing
 
-The application includes a comprehensive test suite using pytest and pytest-qt:
+The application includes a comprehensive test suite using pytest and pytest-qt. Every push and pull request to `main` runs the full suite automatically via [GitHub Actions](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml) on a headless Linux runner (Xvfb).
 
 ```
 # Run all tests
@@ -331,6 +332,6 @@ pip install -r requirements.txt
 python main.py
 
 # Run tests (optional)
-pip install pytest pytest-qt
+pip install -r requirements-dev.txt
 pytest tests/ -v
 ```

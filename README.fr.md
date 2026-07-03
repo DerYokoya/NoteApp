@@ -9,6 +9,7 @@ Un éditeur de texte enrichi modulaire pour ordinateur de bureau, développé av
 ## Application
 
 [![Télécharger l'application](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.1.0)<br>
+[![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
 
 ---
 
@@ -301,7 +302,7 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 
 ## Tests
 
-L'application comprend une suite de tests complète utilisant pytest et pytest-qt :
+L'application comprend une suite de tests complète utilisant pytest et pytest-qt. Chaque push et chaque pull request vers la branche `main` déclenche automatiquement l'exécution de la suite complète via [GitHub Actions](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml) sur un runner Linux sans interface graphique (Xvfb).
 
 ```
 # Exécuter tous les tests
@@ -331,6 +332,6 @@ pip install -r requirements.txt
 python main.py
 
 # Exécuter les tests (facultatif)
-pip install pytest pytest-qt
+pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
