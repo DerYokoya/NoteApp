@@ -50,6 +50,21 @@ def test_add_word_is_case_insensitive(spell_service):
     assert spell_service.is_correct("ZEPHYRIX") is True
 
 
+def test_match_case_preserves_capitalized_word():
+    from app.controllers.context_menu_controller import ContextMenuController
+    assert ContextMenuController._match_case("Thiss", "this") == "This"
+
+
+def test_match_case_preserves_all_caps_word():
+    from app.controllers.context_menu_controller import ContextMenuController
+    assert ContextMenuController._match_case("THISS", "this") == "THIS"
+
+
+def test_match_case_preserves_lowercase_word():
+    from app.controllers.context_menu_controller import ContextMenuController
+    assert ContextMenuController._match_case("teh", "the") == "the"
+
+
 def test_highlighter_flags_misspelled_words(qtbot, spell_service):
     doc_tab = DocumentTab("Test")
     highlighter = SpellCheckHighlighter(doc_tab.text_edit.document(), spell_service)

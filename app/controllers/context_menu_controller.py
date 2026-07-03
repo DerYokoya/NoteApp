@@ -127,6 +127,7 @@ class ContextMenuController:
             return
 
         suggestions = self._spell.suggestions(word)
+        suggestions = [self._match_case(word, s) for s in suggestions]
 
         def replace_with(replacement: str):
             wc = QTextCursor(word_cursor)
@@ -146,6 +147,19 @@ class ContextMenuController:
         add_action.triggered.connect(lambda: self._spell.add_word(word))
 
         menu.addSeparator()
+
+    @staticmethod
+    def _match_case(original: str, replacement: str) -> str:
+        """
+        Apply original's capitalization pattern to replacement, so
+        correcting "Thiss" suggests "This" rather than "this", and
+        "THISS" suggests "THIS".
+        """
+        if original.isupper() and len(original) > 1:
+            return replacement.upper()
+        if original[0].isupper():
+            return replacement[0].upper() + replacement[1:]
+        return replacement
 
     def _open_table_props(self, table, text_edit: QTextEdit):
         dlg = TablePropertiesDialog(table, self._parent)
