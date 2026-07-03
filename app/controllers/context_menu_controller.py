@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QTextEdit, QMenu,
 )
 from PyQt6.QtGui import (
-    QTextFormat, QTextDocument, QImage,
+    QTextFormat, QTextDocument, QImage, QTextCursor,
 )
 from PyQt6.QtCore import Qt, QUrl, QPoint
 
@@ -29,16 +29,20 @@ from widgets.table_dialog import TablePropertiesDialog
 class ContextMenuController:
     """Builds and executes the context menu for a given QTextEdit."""
 
-    def __init__(self, set_alignment_fn, parent_widget):
+    def __init__(self, set_alignment_fn, parent_widget, spell_service=None):
         """
         Parameters
         ----------
         set_alignment_fn : callable(Qt.AlignmentFlag)
             Delegated to FormattingController.set_alignment inside the window.
         parent_widget    : QWidget  (dialogs are parented here)
+        spell_service    : SpellCheckService, optional
+            When provided, right-clicking a misspelled word prepends
+            correction suggestions and an "Add to Dictionary" action.
         """
         self._set_alignment = set_alignment_fn
         self._parent = parent_widget
+        self._spell = spell_service
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -51,6 +55,9 @@ class ContextMenuController:
         cursor = text_edit.cursorForPosition(pos)
         text_edit.setTextCursor(cursor)
         table = cursor.currentTable()
+
+        if self._spell is not None:
+            self._add_spelling_suggestions(menu, cursor, text_edit)
 
         if table:
             menu.addSeparator()
@@ -102,6 +109,43 @@ class ContextMenuController:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _add_spelling_suggestions(self, menu: QMenu, cursor, text_edit: QTextEdit):
+        """
+        If the word under the cursor is misspelled, insert correction
+        actions and an "Add to Dictionary" action at the top of `menu`.
+        No-op (leaves the menu untouched) if the word is correctly
+        spelled or the cursor isn't on a word.
+        """
+        word_cursor = QTextCursor(cursor)
+        word_cursor.select(QTextCursor.SelectionType.WordUnderCursor)
+        word = word_cursor.selectedText().strip("'\"")
+
+        if not word or not word.isalpha():
+            return
+        if self._spell.is_correct(word):
+            return
+
+        suggestions = self._spell.suggestions(word)
+
+        def replace_with(replacement: str):
+            wc = QTextCursor(word_cursor)
+            wc.insertText(replacement)
+
+        if suggestions:
+            for suggestion in suggestions:
+                action = menu.addAction(suggestion)
+                action.triggered.connect(
+                    lambda checked=False, s=suggestion: replace_with(s)
+                )
+        else:
+            no_suggestions = menu.addAction("No suggestions")
+            no_suggestions.setEnabled(False)
+
+        add_action = menu.addAction(f'Add "{word}" to Dictionary')
+        add_action.triggered.connect(lambda: self._spell.add_word(word))
+
+        menu.addSeparator()
 
     def _open_table_props(self, table, text_edit: QTextEdit):
         dlg = TablePropertiesDialog(table, self._parent)

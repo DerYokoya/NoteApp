@@ -10,9 +10,11 @@ from config.styles import StyleSheet
 from models.document_tab import DocumentTab
 from services.file_operations import FileOperations, FileLoadWorker
 from services.settings_manager import SettingsManager
+from services.spellcheck_service import SpellCheckService
 from widgets.search_bar import SearchBar
 from widgets.status_bar import StatusBarWidget
 from widgets.table_dialog import TablePropertiesDialog
+from widgets.spellcheck_highlighter import SpellCheckHighlighter
 
 from app.controllers.formatting_controller import FormattingController
 from app.controllers.toolbar_controller import ToolbarController
@@ -50,9 +52,12 @@ class MainWindow(QMainWindow):
             parent_widget=self,
         )
         self.toolbar_ctrl = ToolbarController(self.fmt_ctrl, self)
+        self.spell_service = SpellCheckService()
+        self.spell_check_enabled = True
         self.ctx_menu_ctrl = ContextMenuController(
             set_alignment_fn=self.set_alignment,
             parent_widget=self,
+            spell_service=self.spell_service,
         )
 
         tokens = StyleSheet.toolbar_tokens(self._dark_theme)
@@ -301,6 +306,12 @@ class MainWindow(QMainWindow):
         self.theme_action.triggered.connect(self._toggle_theme)
         view_menu.addAction(self.theme_action)
 
+        self.spell_check_action = QAction("Spell Check", self)
+        self.spell_check_action.setCheckable(True)
+        self.spell_check_action.setChecked(True)
+        self.spell_check_action.triggered.connect(self._toggle_spell_check)
+        view_menu.addAction(self.spell_check_action)
+
     def _toggle_theme(self, checked: bool):
         """Switch between dark and light themes and persist the choice."""
         self._dark_theme = not checked
@@ -308,6 +319,13 @@ class MainWindow(QMainWindow):
         self.toolbar_ctrl.apply_theme(self._dark_theme)
         self.theme_action.setText("Light Theme")
         self.settings_manager.save_theme(self._dark_theme)
+
+    def _toggle_spell_check(self, checked: bool):
+        """Enable or disable live spell-check underlines on every open tab."""
+        self.spell_check_enabled = checked
+        for doc_tab in self.tabs:
+            if hasattr(doc_tab, "spell_highlighter"):
+                doc_tab.spell_highlighter.set_enabled(checked)
 
     def duplicate_tab(self):
         """Duplicate the current tab's content into a new tab."""
@@ -479,6 +497,10 @@ class MainWindow(QMainWindow):
         doc_tab.text_edit.customContextMenuRequested.connect(
             lambda pos, te=doc_tab.text_edit: self.ctx_menu_ctrl.show(pos, te)
         )
+        doc_tab.spell_highlighter = SpellCheckHighlighter(
+            doc_tab.text_edit.document(), self.spell_service
+        )
+        doc_tab.spell_highlighter.set_enabled(self.spell_check_enabled)
 
     def close_tab(self, index: int):
         """Close tab at given index"""
