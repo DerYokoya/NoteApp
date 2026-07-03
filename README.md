@@ -103,6 +103,7 @@ The application is structured around separation of concerns between UI, document
 - **Editor / Document Layer**
   - Manages text state, cursor behavior, and formatting operations
   - Encapsulates each document per tab for isolation
+  - Live spell checking via `SpellCheckHighlighter`, one instance per tab, backed by a shared `SpellCheckService`
 
 - **Persistence Layer**
   - Handles saving/loading documents (HTML and TXT)
@@ -131,6 +132,9 @@ The application is structured around separation of concerns between UI, document
 - **PyQt6 for UI**
   - Enables fine-grained control over desktop interactions and complex widgets
 
+- **`QSyntaxHighlighter` for live spell check**
+  - Qt re-runs highlighting only on the block being edited rather than the whole document, so live spell checking stays cheap even in large files. Word lookups are delegated to `pyspellchecker`, with a shared per-session custom dictionary so "add to dictionary" persists across tabs
+
 ---
 
 ## Challenges & Solutions
@@ -146,6 +150,9 @@ The application is structured around separation of concerns between UI, document
 
 - **State synchronization**
   - Keeping UI indicators (e.g., unsaved ●) consistent with actual document changes
+
+- **Case-preserving spell correction**
+  - Dictionary suggestions are returned lowercase; applying them naively would turn "Thiss" into "this" instead of "This". Corrections now match the original word's capitalization pattern (title case, all caps, or lowercase) before being inserted
 
 ---
 
@@ -164,6 +171,7 @@ The application is structured around separation of concerns between UI, document
 - Superscript & Subscript support
 - Code blocks with monospace formatting
 - Line spacing control (Single, 1.5x, Double)
+- **Live spell check** — misspelled words are underlined as you type; right-click for ranked suggestions or to add a word to the dictionary; toggle via View → Spell Check
 
 ### Structured Content
 - Fully editable tables (rows, columns, styling)
@@ -223,16 +231,20 @@ The application is structured as a layered desktop system where user interaction
     │                                                                   │
     └─→ ContextMenuController                                           │
           right-click menu, table row/col                               │
-          actions, image resize dialog                                  │
+          actions, image resize dialog,                                 │
+          spell-check suggestions & dictionary                          │
                                                                         │
                                                                         ├─→ constants (AppConfig, StyleSheet)
                                                                         │
                                                                         ├─→ SearchBar, StatusBarWidget,
-                                                                        │    TablePropertiesDialog
+                                                                        │    TablePropertiesDialog,
+                                                                        │    SpellCheckHighlighter
                                                                         │
                                                                         ├─→ FileOperations (read/write/delete),
                                                                         │    SettingsManager (geometry, recent files,
-                                                                        │    session restore)
+                                                                        │    session restore),
+                                                                        │    SpellCheckService (dictionary lookups,
+                                                                        │    suggestions, custom words)
                                                                         │
                                                                         └─→ DocumentTab, LinkAwareTextEdit,
                                                                              is_modified, mark_saved,
@@ -285,6 +297,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 - Building **persistent systems (session recovery)**
 - Creating **responsive and intuitive UI workflows**
 - Applying the **controller pattern** to decompose a large UI class into focused, testable units
+- Implementing **live, event-driven text analysis** (spell check) using Qt's `QSyntaxHighlighter`, scoped for performance on a per-block basis
 
 ---
 
@@ -295,7 +308,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 - **.docx support via python-docx**
 - **More Export options (besides PDF, which has been implemented)**
 - **Cloud sync and backup**
-- **Spell checking**
+- **Grammar checking**
 - **Auto-save recovery**
 
 ---
@@ -322,6 +335,7 @@ pytest tests/ --cov=. --cov-report=html
 ### Requirements
 - Python 3.10+
 - PyQt6
+- pyspellchecker
 - pytest (optional, for running tests)
 
 ### Setup

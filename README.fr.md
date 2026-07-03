@@ -103,6 +103,7 @@ L'application est structurée autour de la séparation des préoccupations entre
 - **Couche Éditeur / Document**
   - Gère l'état du texte, le comportement du curseur et les opérations de mise en forme
   - Encapsule chaque document par onglet à des fins d'isolation
+  - Vérification orthographique en direct via `SpellCheckHighlighter`, une instance par onglet, appuyée sur un `SpellCheckService` partagé
 
 - **Couche de persistance**
   - Gère l'enregistrement et le chargement des documents (HTML et TXT)
@@ -131,6 +132,9 @@ L'application est structurée autour de la séparation des préoccupations entre
 - **PyQt6 pour l'interface utilisateur**
   - Permet un contrôle précis des interactions sur le bureau et des widgets complexes
 
+- **`QSyntaxHighlighter` pour la vérification orthographique en direct**
+  - Qt ne relance la mise en surbrillance que sur le bloc en cours d'édition plutôt que sur tout le document, ce qui permet à la vérification orthographique en direct de rester peu coûteuse même dans les fichiers volumineux. Les recherches de mots sont déléguées à `pyspellchecker`, avec un dictionnaire personnalisé partagé par session afin que « ajouter au dictionnaire » soit conservé d'un onglet à l'autre
+
 ---
 
 ## Défis et solutions
@@ -146,6 +150,9 @@ L'application est structurée autour de la séparation des préoccupations entre
 
 - **Synchronisation de l'état**
   - Maintenir la cohérence entre les indicateurs de l'interface utilisateur (par exemple, ● non enregistré) et les modifications réelles du document
+
+- **Correction orthographique respectant la casse**
+  - Les suggestions du dictionnaire sont renvoyées en minuscules ; les appliquer telles quelles aurait transformé « Thiss » en « this » au lieu de « This ». Les corrections respectent désormais la casse du mot d'origine (majuscule initiale, tout en majuscules, ou minuscules) avant d'être insérées
 
 ---
 
@@ -164,6 +171,7 @@ L'application est structurée autour de la séparation des préoccupations entre
 - Prise en charge des exposants et des indices
 - Blocs de code avec mise en forme monospace
 - Contrôle de l'interligne (simple, 1,5x, double)
+- **Vérification orthographique en direct** — les mots mal orthographiés sont soulignés au fur et à mesure de la saisie ; clic droit pour obtenir des suggestions classées ou ajouter un mot au dictionnaire ; à activer/désactiver via Affichage → Vérification orthographique
 
 ### Contenu structuré
 - Tableaux entièrement modifiables (lignes, colonnes, mise en forme)
@@ -222,17 +230,21 @@ L'application est structurée comme un système de bureau en couches où les int
     │     applique le thème clair/foncé                                 │
     │                                                                   │
     └─→ ContextMenuController                                           │
-          menu contextuel, actions sur les lignes/colonnes du tableau   │
-          boîte de dialogue de redimensionnement d'image                │
+          menu contextuel, actions sur les lignes/colonnes du tableau,  │
+          boîte de dialogue de redimensionnement d'image,               │
+          suggestions orthographiques & dictionnaire                    │
                                                                         │
                                                                         ├─→ constantes (AppConfig, StyleSheet)
                                                                         │
                                                                         ├─→ SearchBar, StatusBarWidget,
-                                                                        │    TablePropertiesDialog
+                                                                        │    TablePropertiesDialog,
+                                                                        │    SpellCheckHighlighter
                                                                         │
                                                                         ├─→ Opérations sur les fichiers (lecture/écriture/suppression),
                                                                         │    SettingsManager (géométrie, fichiers récents,
-                                                                        │    restauration de session)
+                                                                        │    restauration de session),
+                                                                        │    SpellCheckService (recherches dans le dictionnaire,
+                                                                        │    suggestions, mots personnalisés)
                                                                         │
                                                                         └─→ DocumentTab, LinkAwareTextEdit,
                                                                              is_modified, mark_saved,
@@ -285,6 +297,7 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 - Création de **systèmes persistants (récupération de session)**
 - Création de **workflows d'interface utilisateur réactifs et intuitifs**
 - Utilisation du **modèle de contrôleur** pour décomposer une grande classe d'interface utilisateur en unités ciblées et testables
+- Mise en oeuvre d'une **analyse de texte en direct, pilotée par événements** (vérification orthographique) à l'aide du `QSyntaxHighlighter` de Qt, limitée au bloc modifié pour préserver les performances
 
 ---
 
@@ -295,7 +308,7 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 - **Prise en charge du format .docx via python-docx**
 - **Options d'exportation supplémentaires (outre le format PDF, déjà implémenté)**
 - **Synchronisation et sauvegarde dans le cloud**
-- **Vérification orthographique**
+- **Vérification grammaticale**
 - **Récupération après une sauvegarde automatique**
 
 ---
@@ -322,6 +335,7 @@ pytest tests/ --cov=. --cov-report=html
 ### Pré-requis
 - Python 3.10 ou version ultérieure
 - PyQt6
+- pyspellchecker
 - pytest (facultatif, pour exécuter les tests)
 
 ### Configuration
