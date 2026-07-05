@@ -5,7 +5,8 @@
 from models.document_tab import DocumentTab
 import pytest
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QImage, QTextDocument
 
 @pytest.fixture(scope="session")
 def qapp():
@@ -69,3 +70,28 @@ def test_document_save_state(qtbot):
     
     doc.mark_saved()
     assert doc.is_modified is False
+
+
+def test_copying_image_exposes_clipboard_image_data(qtbot):
+    """Copied images should carry image data so a later paste can restore them."""
+    doc = DocumentTab("Test")
+    image = QImage(16, 16, QImage.Format.Format_RGB32)
+    image.fill(Qt.GlobalColor.red)
+
+    doc.text_edit.document().addResource(
+        QTextDocument.ResourceType.ImageResource,
+        QUrl("copied.png"),
+        image,
+    )
+
+    cursor = doc.text_edit.textCursor()
+    cursor.insertImage("copied.png")
+    doc.text_edit.setTextCursor(cursor)
+
+    mime_data = doc.text_edit.createMimeDataFromSelection()
+
+    assert mime_data is not None
+    assert mime_data.hasImage()
+    pasted_image = mime_data.imageData()
+    assert isinstance(pasted_image, QImage)
+    assert pasted_image.size() == image.size()

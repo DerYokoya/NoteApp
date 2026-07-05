@@ -6,7 +6,7 @@
 from pathlib import Path
 from typing import Optional
 from PyQt6.QtWidgets import QTextEdit
-from PyQt6.QtGui import QMouseEvent, QImage, QTextDocument
+from PyQt6.QtGui import QMouseEvent, QImage, QTextDocument, QTextFormat
 from PyQt6.QtCore import QMimeData
 from PyQt6.QtCore import Qt, QBuffer, QIODevice, QUrl
 import webbrowser
@@ -35,6 +35,37 @@ class LinkAwareTextEdit(QTextEdit):
         # Normal click handling
         super().mousePressEvent(event)
     
+    def _get_image_at_cursor(self) -> Optional[QImage]:
+        """Return the image resource under the current cursor, if any."""
+        cursor = self.textCursor()
+        char_fmt = cursor.charFormat()
+        if not char_fmt.isImageFormat():
+            return None
+
+        image_name = char_fmt.stringProperty(QTextFormat.Property.ImageName)
+        if not image_name:
+            return None
+
+        doc = self.document()
+        resource = doc.resource(QTextDocument.ResourceType.ImageResource, QUrl(image_name))
+        if isinstance(resource, QImage):
+            return resource
+        if hasattr(resource, 'value') and isinstance(resource.value(), QImage):
+            return resource.value()
+        return None
+
+    def createMimeDataFromSelection(self) -> Optional[QMimeData]:
+        """Expose copied images through the clipboard mime data."""
+        mime_data = super().createMimeDataFromSelection()
+        if mime_data is None:
+            mime_data = QMimeData()
+
+        image = self._get_image_at_cursor()
+        if image is not None and not image.isNull():
+            mime_data.setImageData(image)
+
+        return mime_data
+
     def insertFromMimeData(self, source: QMimeData):
         """Override to support pasting images from clipboard (Ctrl+V)"""
         # Check if the mime data contains an image
