@@ -95,3 +95,57 @@ def test_copying_image_exposes_clipboard_image_data(qtbot):
     pasted_image = mime_data.imageData()
     assert isinstance(pasted_image, QImage)
     assert pasted_image.size() == image.size()
+
+
+def test_copy_and_paste_image_between_documents(qtbot):
+    """Images copied from one document should paste into another as real images."""
+    source_doc = DocumentTab("Source")
+    target_doc = DocumentTab("Target")
+    image = QImage(12, 12, QImage.Format.Format_RGB32)
+    image.fill(Qt.GlobalColor.blue)
+
+    source_doc.text_edit.document().addResource(
+        QTextDocument.ResourceType.ImageResource,
+        QUrl("copied_between_docs.png"),
+        image,
+    )
+
+    cursor = source_doc.text_edit.textCursor()
+    cursor.insertImage("copied_between_docs.png")
+    source_doc.text_edit.setTextCursor(cursor)
+
+    mime_data = source_doc.text_edit.createMimeDataFromSelection()
+    assert mime_data is not None
+    assert mime_data.hasImage()
+
+    target_doc.text_edit.insertFromMimeData(mime_data)
+
+    pasted_html = target_doc.text_edit.toHtml()
+    assert "<img" in pasted_html
+    assert "src=" in pasted_html
+
+
+def test_image_html_round_trip_preserves_embedded_data(qtbot):
+    """Image resources should survive HTML save/load round trips."""
+    doc = DocumentTab("Test")
+    image = QImage(8, 8, QImage.Format.Format_RGB32)
+    image.fill(Qt.GlobalColor.green)
+
+    doc.text_edit.document().addResource(
+        QTextDocument.ResourceType.ImageResource,
+        QUrl("roundtrip.png"),
+        image,
+    )
+
+    cursor = doc.text_edit.textCursor()
+    cursor.insertImage("roundtrip.png")
+    doc.text_edit.setTextCursor(cursor)
+
+    html = doc.get_content_html()
+    assert "data:image/png;base64," in html
+
+    restored_doc = DocumentTab("Restored")
+    restored_doc.set_content(html, is_html=True)
+    restored_html = restored_doc.get_content_html()
+
+    assert "data:image/png;base64," in restored_html
