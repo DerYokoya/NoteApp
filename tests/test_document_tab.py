@@ -153,17 +153,41 @@ def test_image_html_round_trip_preserves_embedded_data(qtbot):
     assert "data:image/png;base64," in restored_html
 
 
-def test_session_restore_preserves_tab_order_when_files_load_out_of_order(qtbot):
-    """Previously open tabs should be restored in the same order they were saved."""
+def test_session_restore_preserves_tab_order_when_files_load_out_of_order(qtbot, tmp_path):
+    """Previously open tabs should be restored in the same order they were saved,
+    even if their background loads finish in a different order."""
     window = MainWindow()
 
+    # MainWindow() creates a default "Untitled" tab when there's no saved
+    # session to restore. Clear it so it doesn't skew the tab order/index
+    # assertions below.
+    while window.tab_widget.count():
+        window.tab_widget.removeTab(0)
+    window.tabs.clear()
+
+    file_a = tmp_path / "a.txt"
+    file_b = tmp_path / "b.txt"
+    file_a.write_text("first", encoding="utf-8")
+    file_b.write_text("second", encoding="utf-8")
+
+    # Mirror what _restore_session does: placeholder tabs are created up
+    # front, in saved order, before any load results come back.
     window._is_restoring_session = True
     window._restore_pending = 2
     window._restore_active_index = -1
-    window._restore_order = [Path("a.txt"), Path("b.txt")]
+    window._restore_tabs_by_path = {}
 
-    window._on_file_loaded(Path("b.txt"), "<p>second</p>", False)
-    window._on_file_loaded(Path("a.txt"), "<p>first</p>", False)
+    for path in [file_a, file_b]:
+        doc_tab = DocumentTab()
+        doc_tab.current_file = path
+        window._wire_tab(doc_tab)
+        window.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
+        window.tabs.append(doc_tab)
+        window._restore_tabs_by_path[path] = doc_tab
+
+    # "b.txt" finishes loading first, even though it was saved second.
+    window._on_file_loaded(file_b, "<p>second</p>", False)
+    window._on_file_loaded(file_a, "<p>first</p>", False)
 
     assert [tab.current_file.name for tab in window.tabs] == ["a.txt", "b.txt"]
 
@@ -171,6 +195,12 @@ def test_session_restore_preserves_tab_order_when_files_load_out_of_order(qtbot)
 def test_save_session_uses_visible_tab_order_after_reordering(qtbot, tmp_path):
     """Saved session order should follow the visible tab order, even after moving tabs."""
     window = MainWindow()
+
+    # Same as above: drop the default "Untitled" tab so indices in this
+    # test line up with just the three files below.
+    while window.tab_widget.count():
+        window.tab_widget.removeTab(0)
+    window.tabs.clear()
 
     first_file = tmp_path / "first.txt"
     second_file = tmp_path / "second.txt"
