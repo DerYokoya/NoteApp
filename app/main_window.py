@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self._is_restoring_session = False
         self._restore_pending = 0
         self._restore_active_index = -1
-        self._restore_order: List[Path] = []
+        self._restore_tabs_by_path: dict = {}
         self._load_threads: dict = {}  # filepath -> (QThread, FileLoadWorker), keeps them alive
 
         self._setup_ui()
@@ -447,14 +447,28 @@ class MainWindow(QMainWindow):
             self.new_tab()
             return
 
-        # Loads happen on background threads, so we can't just check
-        # tab_widget.count() right after kicking them off - track how many
-        # are still outstanding and finish restoring once they've all
-        # reported back (success or failure).
+        # Loads happen on background threads and can finish in any order,
+        # so we can't rely on load-completion order to determine tab order.
+        # Instead, create an empty placeholder tab for each file *now*, in
+        # the exact saved order, and just fill each one in with its content
+        # whenever its background load finishes. Track how many are still
+        # outstanding and finish restoring once they've all reported back
+        # (success or failure).
         self._is_restoring_session = True
         self._restore_pending = len(open_tabs)
         self._restore_active_index = active_index
-        self._restore_order = [Path(filepath) for filepath in open_tabs]
+        self._restore_tabs_by_path = {}
+
+        for filepath in open_tabs:
+            path = Path(filepath)
+            doc_tab = DocumentTab()
+            doc_tab.current_file = path
+            doc_tab.text_edit.setReadOnly(True)
+            self._wire_tab(doc_tab)
+            index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
+            self.tab_widget.setTabToolTip(index, f"Loading {path.name}...")
+            self.tabs.append(doc_tab)
+            self._restore_tabs_by_path[path] = doc_tab
 
         for filepath in open_tabs:
             self._load_file_async(Path(filepath))
@@ -631,22 +645,28 @@ class MainWindow(QMainWindow):
 
     def _on_file_loaded(self, filepath: Path, content: str, is_html: bool):
         """Handle a successful background file load (runs on the main thread)."""
-        doc_tab = DocumentTab()
-        doc_tab.set_content(content, is_html)
-        doc_tab.current_file = filepath
-
-        self._wire_tab(doc_tab)
-
         if self._is_restoring_session:
-            try:
-                order_index = self._restore_order.index(filepath)
-            except ValueError:
-                order_index = len(self.tabs)
+            # The placeholder tab for this file already exists in the right
+            # slot (created up front in _restore_session) - just fill it in.
+            doc_tab = self._restore_tabs_by_path.get(filepath)
+            if doc_tab is None:
+                self._on_restore_step_done()
+                return
 
-            self.tabs.insert(order_index, doc_tab)
-            self.tab_widget.insertTab(order_index, doc_tab.text_edit, doc_tab.get_display_name())
+            doc_tab.set_content(content, is_html)
+            doc_tab.text_edit.setReadOnly(False)
+            index = self.tab_widget.indexOf(doc_tab.text_edit)
+            if index != -1:
+                self.tab_widget.setTabText(index, doc_tab.get_display_name())
+                self.tab_widget.setTabToolTip(index, "")
             self._on_restore_step_done()
         else:
+            doc_tab = DocumentTab()
+            doc_tab.set_content(content, is_html)
+            doc_tab.current_file = filepath
+
+            self._wire_tab(doc_tab)
+
             index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
             self.tabs.append(doc_tab)
             self.tab_widget.setCurrentIndex(index)
@@ -666,6 +686,13 @@ class MainWindow(QMainWindow):
         self.statusBar().clearMessage()
 
         if self._is_restoring_session:
+            doc_tab = self._restore_tabs_by_path.pop(filepath, None)
+            if doc_tab is not None:
+                index = self.tab_widget.indexOf(doc_tab.text_edit)
+                if index != -1:
+                    self.tab_widget.removeTab(index)
+                if doc_tab in self.tabs:
+                    self.tabs.remove(doc_tab)
             self._on_restore_step_done()
 
     def save(self):
