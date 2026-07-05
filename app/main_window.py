@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
         self._is_restoring_session = False
         self._restore_pending = 0
         self._restore_active_index = -1
+        self._restore_order: List[Path] = []
         self._load_threads: dict = {}  # filepath -> (QThread, FileLoadWorker), keeps them alive
 
         self._setup_ui()
@@ -453,6 +454,7 @@ class MainWindow(QMainWindow):
         self._is_restoring_session = True
         self._restore_pending = len(open_tabs)
         self._restore_active_index = active_index
+        self._restore_order = [Path(filepath) for filepath in open_tabs]
 
         for filepath in open_tabs:
             self._load_file_async(Path(filepath))
@@ -471,9 +473,17 @@ class MainWindow(QMainWindow):
 
     def _save_session(self):
         """Save currently open tabs for next session"""
-        open_tabs = [str(tab.current_file) for tab in self.tabs if tab.current_file]
+        ordered_tabs = []
+        for index in range(self.tab_widget.count()):
+            tab_widget = self.tab_widget.widget(index)
+            for tab in self.tabs:
+                if tab.text_edit is tab_widget:
+                    if tab.current_file:
+                        ordered_tabs.append(str(tab.current_file))
+                    break
+
         active_index = self.tab_widget.currentIndex()
-        self.settings_manager.save_open_tabs(open_tabs, active_index)
+        self.settings_manager.save_open_tabs(ordered_tabs, active_index)
 
     # ── Tab management ────────────────────────────────────────────────
 
@@ -627,17 +637,23 @@ class MainWindow(QMainWindow):
 
         self._wire_tab(doc_tab)
 
-        index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
-        self.tabs.append(doc_tab)
-        self.tab_widget.setCurrentIndex(index)
+        if self._is_restoring_session:
+            try:
+                order_index = self._restore_order.index(filepath)
+            except ValueError:
+                order_index = len(self.tabs)
+
+            self.tabs.insert(order_index, doc_tab)
+            self.tab_widget.insertTab(order_index, doc_tab.text_edit, doc_tab.get_display_name())
+            self._on_restore_step_done()
+        else:
+            index = self.tab_widget.addTab(doc_tab.text_edit, doc_tab.get_display_name())
+            self.tabs.append(doc_tab)
+            self.tab_widget.setCurrentIndex(index)
+            self._save_session()
 
         self.settings_manager.add_recent_file(str(filepath))
         self._update_recent_files_menu()
-
-        if self._is_restoring_session:
-            self._on_restore_step_done()
-        else:
-            self._save_session()
 
         self.statusBar().showMessage(f"Opened: {filepath.name}", 3000)
 

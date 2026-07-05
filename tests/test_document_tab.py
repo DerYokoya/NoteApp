@@ -3,10 +3,12 @@
 # The tests check the initialization, modified flag, content handling, file path management,
 # and save state tracking of the DocumentTab.
 from models.document_tab import DocumentTab
+from app.main_window import MainWindow
 import pytest
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QImage, QTextDocument
+from pathlib import Path
 
 @pytest.fixture(scope="session")
 def qapp():
@@ -149,3 +151,40 @@ def test_image_html_round_trip_preserves_embedded_data(qtbot):
     restored_html = restored_doc.get_content_html()
 
     assert "data:image/png;base64," in restored_html
+
+
+def test_session_restore_preserves_tab_order_when_files_load_out_of_order(qtbot):
+    """Previously open tabs should be restored in the same order they were saved."""
+    window = MainWindow()
+
+    window._is_restoring_session = True
+    window._restore_pending = 2
+    window._restore_active_index = -1
+    window._restore_order = [Path("a.txt"), Path("b.txt")]
+
+    window._on_file_loaded(Path("b.txt"), "<p>second</p>", False)
+    window._on_file_loaded(Path("a.txt"), "<p>first</p>", False)
+
+    assert [tab.current_file.name for tab in window.tabs] == ["a.txt", "b.txt"]
+
+
+def test_save_session_uses_visible_tab_order_after_reordering(qtbot, tmp_path):
+    """Saved session order should follow the visible tab order, even after moving tabs."""
+    window = MainWindow()
+
+    first_file = tmp_path / "first.txt"
+    second_file = tmp_path / "second.txt"
+    third_file = tmp_path / "third.txt"
+    first_file.write_text("first", encoding="utf-8")
+    second_file.write_text("second", encoding="utf-8")
+    third_file.write_text("third", encoding="utf-8")
+
+    for path in [first_file, second_file, third_file]:
+        window._on_file_loaded(path, "<p>content</p>", False)
+
+    window.tab_widget.tabBar().moveTab(1, 2)
+
+    window._save_session()
+    saved_tabs, _ = window.settings_manager.get_open_tabs()
+
+    assert saved_tabs == [str(first_file), str(third_file), str(second_file)]
