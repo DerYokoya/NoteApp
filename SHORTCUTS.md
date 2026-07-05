@@ -8,6 +8,7 @@
 | `Ctrl + S` | Save |
 | `Ctrl + Shift + S` | Save As |
 | `Ctrl + W` | Close Tab |
+| `Ctrl + Shift + K` | Duplicate Tab |
 | `Ctrl + Delete` | Delete File |
 | `Ctrl + Q` | Quit Application |
 | `Ctrl + P` | Print Document |

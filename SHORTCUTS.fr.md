@@ -8,6 +8,7 @@
 | `Ctrl + S` | Enregistrer |
 | `Ctrl + Maj + S` | Enregistrer sous |
 | `Ctrl + W` | Fermer l'onglet |
+| `Ctrl + Maj + K` | Dupliquer l'onglet |
 | `Ctrl + Suppr` | Supprimer le fichier |
 | `Ctrl + Q` | Quitter l'application |
 | `Ctrl + P` | Imprimer le document |
