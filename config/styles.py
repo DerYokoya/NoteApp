@@ -2,9 +2,17 @@
 # Styles
 # ============================================================================
 from pathlib import Path
+import sys
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-ARROW_PATH = (BASE_DIR / "icons" / "down_arrow.svg").as_posix()
+def resource_path(relative_path: str) -> str:
+    if getattr(sys, "frozen", False):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).resolve().parent.parent
+
+    return (base_path / relative_path).as_posix()
+
+ARROW_PATH = resource_path("icons/down_arrow.svg")
 
 class StyleSheet:
     """Application-wide stylesheet"""
