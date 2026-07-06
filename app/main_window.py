@@ -11,6 +11,7 @@ from models.document_tab import DocumentTab
 from services.file_operations import FileOperations, FileLoadWorker
 from services.settings_manager import SettingsManager
 from services.spellcheck_service import SpellCheckService
+from services.export_services import html_to_markdown, save_html_as_docx
 from widgets.search_bar import SearchBar
 from widgets.status_bar import StatusBarWidget
 from widgets.table_dialog import TablePropertiesDialog
@@ -141,6 +142,27 @@ class MainWindow(QMainWindow):
         export_pdf_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
         export_pdf_action.triggered.connect(self._export_to_pdf)
         file_menu.addAction(export_pdf_action)
+
+        export_docx_action = QAction("Export as &Word Document...", self)
+        export_docx_action.setShortcut(QKeySequence("Ctrl+Shift+W"))
+        export_docx_action.triggered.connect(self._export_to_docx)
+        file_menu.addAction(export_docx_action)
+
+        export_md_menu = file_menu.addMenu("Export as &Markdown")
+
+        export_md_plain_action = QAction("Plain Markdown...", self)
+        export_md_plain_action.setShortcut(QKeySequence("Ctrl+Shift+M"))
+        export_md_plain_action.triggered.connect(lambda: self._export_to_markdown(html_fallback=False))
+        export_md_menu.addAction(export_md_plain_action)
+
+        export_md_html_action = QAction("Markdown + HTML Formatting...", self)
+        export_md_html_action.setShortcut(QKeySequence("Ctrl+Shift+Alt+M"))
+        export_md_html_action.setToolTip(
+            "Keeps things plain Markdown can't express (underline, text color, "
+            "highlighting, custom fonts) as inline HTML"
+        )
+        export_md_html_action.triggered.connect(lambda: self._export_to_markdown(html_fallback=True))
+        export_md_menu.addAction(export_md_html_action)
 
         file_menu.addSeparator()
 
@@ -1187,6 +1209,65 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self, "Success",
             f"PDF exported successfully to:\n{filename}\n\nFont size: {font_size}pt"
+        )
+
+    def _export_to_docx(self):
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            QMessageBox.warning(self, "Export Word Document", "No document to export")
+            return
+
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Export as Word Document",
+            current_tab.current_file.stem if current_tab.current_file else "document",
+            "Word Documents (*.docx)",
+        )
+        if not filename:
+            return
+        if not filename.endswith('.docx'):
+            filename += '.docx'
+
+        try:
+            save_html_as_docx(current_tab.get_content_html(), Path(filename))
+        except ImportError as e:
+            QMessageBox.critical(self, "Export Word Document", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Export Word Document", f"Failed to export document:\n{e}")
+            return
+
+        QMessageBox.information(
+            self, "Success",
+            f"Word document exported successfully to:\n{filename}"
+        )
+
+    def _export_to_markdown(self, html_fallback: bool = False):
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            QMessageBox.warning(self, "Export Markdown", "No document to export")
+            return
+
+        dialog_title = "Export as Markdown + HTML Formatting" if html_fallback else "Export as Markdown"
+        filename, _ = QFileDialog.getSaveFileName(
+            self, dialog_title,
+            current_tab.current_file.stem if current_tab.current_file else "document",
+            "Markdown Files (*.md)",
+        )
+        if not filename:
+            return
+        if not filename.endswith('.md'):
+            filename += '.md'
+
+        try:
+            markdown_text = html_to_markdown(current_tab.get_content_html(), html_fallback=html_fallback)
+            Path(filename).write_text(markdown_text, encoding='utf-8')
+        except Exception as e:
+            QMessageBox.critical(self, "Export Markdown", f"Failed to export document:\n{e}")
+            return
+
+        QMessageBox.information(
+            self, "Success",
+            f"Markdown exported successfully to:\n{filename}"
         )
 
     def _print_document(self):

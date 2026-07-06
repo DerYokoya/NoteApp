@@ -13,6 +13,9 @@
 | `Ctrl + Q` | Quit Application |
 | `Ctrl + P` | Print Document |
 | `Ctrl + Shift + E` | Export as PDF |
+| `Ctrl + Shift + W` | Export as Word Document |
+| `Ctrl + Shift + M` | Export as Markdown (Plain) |
+| `Ctrl + Shift + Alt + M` | Export as Markdown + HTML Formatting |
 
 ### Edit Operations
 | Shortcut | Action |

@@ -185,6 +185,9 @@ L'application est structurée autour de la séparation des préoccupations entre
 - Barre d'état (position du curseur, nombre de mots)
 - Flux de travail axé sur le clavier pour toutes les actions principales
 - Prise en charge de l'impression avec exportation au format PDF
+- Exportation vers Word (.docx) et Markdown (.md), toutes deux implémentées à partir de zéro (python-docx et conversion HTML par expressions régulières, sans bibliothèque tierce)
+  - L'exportation Markdown propose deux modes : **Markdown simple** (supprime tout ce que Markdown ne peut pas représenter, comme le soulignement, la couleur, le surlignage ou les polices personnalisées) et **Markdown + mise en forme HTML** (conserve ces éléments sous forme de HTML intégré - `<u>`, `<span style="color:...">`, `<font face="...">` - que la plupart des moteurs de rendu Markdown laissent passer tel quel)
+  - L'exportation Word conserve la couleur du texte, le surlignage, les polices Web de base (revient à la police normale sinon), le gras/italique/souligné/barré, l'alignement, l'indentation, les liens, les listes, les tableaux et les images intégrées
 - **Basculement entre le thème clair et le thème sombre (Ctrl+Maj+D) ; les préférences sont conservées d'une session à l'autre**
 
 ---
@@ -305,8 +308,7 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 
 - **Système de plugins**
 - **Optimisation des performances pour les documents volumineux**
-- **Prise en charge du format .docx via python-docx**
-- **Options d'exportation supplémentaires (outre le format PDF, déjà implémenté)**
+- **Options d'exportation supplémentaires (PDF, Word et Markdown sont désormais implémentés)**
 - **Synchronisation et sauvegarde dans le cloud**
 - **Vérification grammaticale**
 - **Récupération après une sauvegarde automatique**

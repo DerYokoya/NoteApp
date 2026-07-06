@@ -185,6 +185,9 @@ The application is structured around separation of concerns between UI, document
 - Status bar (cursor position, word count)
 - Keyboard-first workflow across all major actions
 - Print support with PDF export
+- Export to Word (.docx) and Markdown (.md), both implemented from scratch on top of `python-docx`/regex-based HTML conversion (no third-party HTML-to-Markdown library)
+  - Markdown export offers two modes: **Plain Markdown** (drops anything Markdown can't represent, like underline/color/highlight/custom fonts) and **Markdown + HTML Formatting** (keeps those as inline HTML - `<u>`, `<span style="color:...">`, `<font face="...">` - which most Markdown renderers pass through)
+  - Word export preserves text color, highlighting, basic web-safe fonts (falls back to the normal font otherwise), bold/italic/underline/strikethrough, alignment, indentation, links, lists, tables, and embedded images
 - **Light / Dark theme toggle (Ctrl+Shift+D), preference persisted across sessions**
 
 ---
@@ -305,8 +308,7 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 - **Plugin system for extensibility**
 - **Performance optimization for large documents**
-- **.docx support via python-docx**
-- **More Export options (besides PDF, which has been implemented)**
+- **More Export options (PDF, Word, and Markdown have been implemented)**
 - **Cloud sync and backup**
 - **Grammar checking**
 - **Auto-save recovery**

@@ -13,6 +13,9 @@
 | `Ctrl + Q` | Quitter l'application |
 | `Ctrl + P` | Imprimer le document |
 | `Ctrl + Maj + E` | Exporter au format PDF |
+| `Ctrl + Maj + W` | Exporter en document Word |
+| `Ctrl + Maj + M` | Exporter au format Markdown (simple) |
+| `Ctrl + Maj + Alt + M` | Exporter en Markdown + mise en forme HTML |
 
 ### Opérations d'édition
 | Raccourci | Action |
