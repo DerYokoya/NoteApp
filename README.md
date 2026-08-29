@@ -8,8 +8,24 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 
 ## App
 
-[![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.1.0)<br>
+[![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)<br>
+[![Pre-release](https://img.shields.io/badge/Pre-release-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases)<br>
 [![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
+[![Pre-release workflow](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml)
+
+---
+
+## Release Pipeline
+
+The project now includes a simple automated release flow:
+
+- every push or pull request to `main` runs the CI workflow
+- a successful run of the main branch also triggers the prerelease workflow
+- the app is rebuilt with PyInstaller on Windows
+- the generated bundle is packaged into a GitHub prerelease
+- the workflow can also be run manually with `workflow_dispatch`
+
+This keeps the project in a test-and-prerelease loop without requiring a permanent production deployment setup.
 
 ---
 
@@ -319,6 +335,8 @@ A full list of keyboard shortcuts is available in [SHORTCUTS.md](SHORTCUTS.md).
 
 The application includes a comprehensive test suite using pytest and pytest-qt. Every push and pull request to `main` runs the full suite automatically via [GitHub Actions](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml) on a headless Linux runner (Xvfb).
 
+The prerelease workflow runs after the test job succeeds and packages the app into a GitHub prerelease for quick distribution.
+
 ```
 # Run all tests
 pytest tests/ -v
@@ -335,19 +353,26 @@ pytest tests/ --cov=. --cov-report=html
 ## Installation
 
 ### Requirements
-- Python 3.10+
+- Python 3.12 recommended
 - PyQt6
 - pyspellchecker
+- PyInstaller (for packaging a distributable executable)
 - pytest (optional, for running tests)
 
 ### Setup
 ```
 git clone https://github.com/DerYokoya/NoteApp.git
 cd NoteApp
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 
 # Run tests (optional)
 pip install -r requirements-dev.txt
 pytest tests/ -v
+
+# Build a Windows executable locally
+pip install pyinstaller
+python -m PyInstaller --onefile --windowed --name NoteApp --add-data "icons;icons" main.py
 ```

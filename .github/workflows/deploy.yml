@@ -68,6 +68,7 @@ jobs:
             --windowed \
             --name NoteApp \
             --add-data "icons;icons" \
+            --collect-data spellchecker \
             main.py
 
       - name: Create release archive
@@ -79,6 +80,16 @@ jobs:
           }
           $archive = Join-Path $env:GITHUB_WORKSPACE "NoteApp-prerelease.zip"
           Compress-Archive -Path $files.FullName -DestinationPath $archive -Force
+
+      - name: Delete existing prerelease for this run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="prerelease-${{ github.run_number }}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+          fi
 
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2

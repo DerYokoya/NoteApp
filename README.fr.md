@@ -8,8 +8,24 @@ Un éditeur de texte enrichi modulaire pour ordinateur de bureau, développé av
 
 ## Application
 
-[![Télécharger l'application](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.1.0)<br>
+[![Télécharger l'application](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)<br>
+[![Pré-version](https://img.shields.io/badge/Pré-version-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases)<br>
 [![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
+[![Workflow de pré-version](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml)
+
+---
+
+## Pipeline de publication
+
+Le projet inclut désormais un flux de publication automatisé :
+
+- chaque push ou pull request vers `main` déclenche la CI
+- un lancement réussi sur la branche principale déclenche aussi le workflow de pré-version
+- l'application est reconstruite avec PyInstaller sous Windows
+- le bundle généré est publié dans une pré-version GitHub
+- le workflow peut aussi être déclenché manuellement via `workflow_dispatch`
+
+Cela permet d'avoir un cycle de test et de pré-version sans mettre en place un déploiement de production permanent.
 
 ---
 
@@ -319,6 +335,8 @@ Une liste complète des raccourcis clavier est disponible dans [SHORTCUTS.fr.md]
 
 L'application comprend une suite de tests complète utilisant pytest et pytest-qt. Chaque push et chaque pull request vers la branche `main` déclenche automatiquement l'exécution de la suite complète via [GitHub Actions](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml) sur un runner Linux sans interface graphique (Xvfb).
 
+Le workflow de pré-version s'exécute ensuite si les tests passent et prépare une pré-version GitHub avec l'exécutable empaqueté.
+
 ```
 # Exécuter tous les tests
 pytest tests/ -v
@@ -335,19 +353,26 @@ pytest tests/ --cov=. --cov-report=html
 ## Installation
 
 ### Pré-requis
-- Python 3.10 ou version ultérieure
+- Python 3.12 recommandé
 - PyQt6
 - pyspellchecker
+- PyInstaller (pour générer un exécutable distribuable)
 - pytest (facultatif, pour exécuter les tests)
 
 ### Configuration
 ```
 git clone https://github.com/DerYokoya/NoteApp.git
 cd NoteApp
+python -m venv .venv
+source .venv/bin/activate   # Windows : .venv\Scripts\activate
 pip install -r requirements.txt
 python main.py
 
 # Exécuter les tests (facultatif)
 pip install -r requirements-dev.txt
 pytest tests/ -v
+
+# Construire un exécutable Windows localement
+pip install pyinstaller
+python -m PyInstaller --onefile --windowed --name NoteApp --add-data "icons;icons" main.py
 ```
