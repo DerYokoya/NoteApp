@@ -63,7 +63,12 @@ jobs:
       - name: Build app bundle
         shell: bash
         run: |
-          python -m PyInstaller main.spec --noconfirm
+          python -m PyInstaller \
+            --onefile \
+            --windowed \
+            --name NoteApp \
+            --add-data "icons;icons" \
+            main.py
 
       - name: Create release archive
         shell: pwsh
