@@ -8,7 +8,7 @@ Un éditeur de texte enrichi modulaire pour ordinateur de bureau, développé av
 
 ## Application
 
-[![Télécharger l'application](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)<br>
+[![Télécharger l'application](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)
 [![Pré-version](https://img.shields.io/badge/Pré-version-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases)<br>
 [![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
 [![Workflow de pré-version](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml)

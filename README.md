@@ -8,7 +8,7 @@ A modular, desktop rich-text editor built with Python and PyQt6, designed to exp
 
 ## App
 
-[![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)<br>
+[![Download App](https://img.shields.io/badge/Download-App-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases/tag/v1.2.0)
 [![Pre-release](https://img.shields.io/badge/Pre-release-0A192F?style=for-the-badge)](https://github.com/DerYokoya/NoteApp/releases)<br>
 [![Tests](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/tests.yml)
 [![Pre-release workflow](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerYokoya/NoteApp/actions/workflows/deploy.yml)
