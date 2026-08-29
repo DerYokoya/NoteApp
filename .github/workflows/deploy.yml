@@ -1,0 +1,85 @@
+name: Pre-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Qt system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libxkbcommon0 libxkbcommon-x11-0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+            libxcb-shape0 libxcb-sync1 libxcb-xfixes0 \
+            libxcb-xinerama0 libgl1 libglx-mesa0
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-qt pytest-cov
+
+      - name: Run tests (headless via Xvfb)
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: pytest --cov --cov-report=term-missing
+
+  prerelease:
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build app bundle
+        shell: bash
+        run: |
+          python -m PyInstaller main.spec --noconfirm
+
+      - name: Create release archive
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist -Recurse -File
+          if (-not $files) {
+            throw "No build artifacts were generated in dist/."
+          }
+          $archive = Join-Path $env:GITHUB_WORKSPACE "NoteApp-prerelease.zip"
+          Compress-Archive -Path $files.FullName -DestinationPath $archive -Force
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: prerelease-${{ github.run_number }}
+          name: Pre-release ${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: NoteApp-prerelease.zip
