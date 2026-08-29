@@ -374,5 +374,11 @@ pytest tests/ -v
 
 # Construire un exécutable Windows localement
 pip install pyinstaller
-python -m PyInstaller --onefile --windowed --name NoteApp --add-data "icons;icons" main.py
+py -3.14 -m PyInstaller `
+    --onefile `
+    --windowed `
+    --name NoteApp `
+    --add-data "icons;icons" `
+    --collect-data spellchecker `
+    main.py
 ```
