@@ -86,7 +86,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="prerelease-${{ github.run_number }}"
+          tag="prerelease-latest"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
           fi
@@ -94,8 +94,8 @@ jobs:
       - name: Publish prerelease
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: prerelease-${{ github.run_number }}
-          name: Pre-release ${{ github.run_number }}
+          tag_name: prerelease-latest
+          name: Pre-release
           draft: false
           prerelease: true
           files: NoteApp-prerelease.zip
