@@ -96,6 +96,16 @@ jobs:
         with:
           tag_name: prerelease-latest
           name: Pre-release
+          body: |
+            Latest pre-release version of NoteApp.
+
+            Download `NoteApp-prerelease.zip` from the Assets section below.
+
+            ---
+
+            Dernière préversion de NoteApp.
+
+            Téléchargez `NoteApp-prerelease.zip` dans la section Assets ci-dessous.
           draft: false
           prerelease: true
           files: NoteApp-prerelease.zip
