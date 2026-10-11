@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import QTextEdit
 from PyQt6.QtGui import QMouseEvent, QImage, QTextDocument, QTextFormat
 from PyQt6.QtCore import QMimeData
 from PyQt6.QtCore import Qt, QBuffer, QIODevice, QUrl
+from config.app_config import AppConfig
 import webbrowser
 import re
 
@@ -83,12 +84,26 @@ class LinkAwareTextEdit(QTextEdit):
                 
                 # Insert the image into the document
                 cursor = self.textCursor()
+                undo_enabled = self.document().isUndoRedoEnabled()
+                self.document().setUndoRedoEnabled(
+                    undo_enabled
+                    and image.sizeInBytes() <= AppConfig.MAX_UNDO_OPERATION_SIZE
+                )
                 cursor.insertImage(image_name)
+                self.document().setUndoRedoEnabled(undo_enabled)
                 self.setTextCursor(cursor)
                 return
         
-        # Fall back to default paste behavior for non-image content
-        super().insertFromMimeData(source)
+        # Large pastes should not retain a second full copy in the undo stack.
+        undo_enabled = self.document().isUndoRedoEnabled()
+        large_paste = len(source.text().encode("utf-8")) > AppConfig.MAX_UNDO_OPERATION_SIZE
+        if large_paste:
+            self.document().setUndoRedoEnabled(False)
+        try:
+            super().insertFromMimeData(source)
+        finally:
+            if large_paste:
+                self.document().setUndoRedoEnabled(undo_enabled)
 
 
 class DocumentTab:
@@ -97,24 +112,31 @@ class DocumentTab:
     def __init__(self, name: Optional[str] = None):
         self.text_edit = LinkAwareTextEdit()
         self.text_edit.setAcceptRichText(True)
-        self.text_edit.setUndoRedoEnabled(True)  # Explicitly enable
+        self.text_edit.setUndoRedoEnabled(True)
         
         self.current_file: Optional[Path] = None
         self.name = name or "Untitled"
         self._last_saved_content = ""
+        self._change_generation = 0
+        self.text_edit.textChanged.connect(self._content_changed)
         
         # Use Qt's built-in document modified tracking
         self.text_edit.document().setModified(False)
+
+    def _content_changed(self):
+        self._change_generation += 1
         
     @property
     def is_modified(self) -> bool:
         """Check if document has unsaved changes"""
         return self.text_edit.document().isModified()
     
-    def mark_saved(self):
+    def mark_saved(self, saved_content: Optional[str] = None):
         """Mark document as saved"""
         self.text_edit.document().setModified(False)
-        self._last_saved_content = self.text_edit.toHtml()
+        self._last_saved_content = (
+            saved_content if saved_content is not None else self.text_edit.toHtml()
+        )
     
     def get_display_name(self) -> str:
         """Get the display name for tab/window title"""
@@ -131,26 +153,39 @@ class DocumentTab:
     def get_content_html(self) -> str:
         """Get document content as HTML with embedded images"""
         html = self.text_edit.toHtml()
-        
-        # Find all src="..." values in the HTML
+        images = self._get_image_snapshot(html)
+        return self.serialize_html_snapshot(html, images)
+
+    def get_content_html_snapshot(self) -> tuple[str, dict[str, QImage]]:
+        """Capture GUI-owned document data for background HTML serialization."""
+        html = self.text_edit.toHtml()
+        return html, self._get_image_snapshot(html)
+
+    def _get_image_snapshot(self, html: str) -> dict[str, QImage]:
         doc = self.text_edit.document()
-        
-        def embed_image(match):
+        images = {}
+        for match in re.finditer(r'src="([^"]*)"', html):
             src = match.group(1)
-            # Skip already-embedded base64 data URIs
             if src.startswith("data:"):
-                return match.group(0)
-            
+                continue
             url = QUrl(src)
-            # QTextDocument.ResourceType.ImageResource == 2 in PyQt6
             resource = doc.resource(2, url)
             image = None
             if isinstance(resource, QImage):
                 image = resource
             elif hasattr(resource, 'value') and isinstance(resource.value(), QImage):
                 image = resource.value()
-            
             if image is not None and not image.isNull():
+                images[src] = image.copy()
+        return images
+
+    @staticmethod
+    def serialize_html_snapshot(html: str, images: dict[str, QImage]) -> str:
+        """Serialize a GUI snapshot; safe to run in a worker thread."""
+        def embed_image(match):
+            src = match.group(1)
+            image = images.get(src)
+            if image is not None:
                 buf = QBuffer()
                 buf.open(QIODevice.OpenModeFlag.WriteOnly)
                 image.save(buf, "PNG")
@@ -158,9 +193,9 @@ class DocumentTab:
                 base64_data = buf.data().toBase64().data().decode('utf-8')
                 return f'src="data:image/png;base64,{base64_data}"'
             return match.group(0)
-        
+
         html = re.sub(r'src="([^"]*)"', embed_image, html)
-        
+
         # Qt bakes the app's dark palette colors into table cell inline styles.
         # Strip background-color from <td> and <th> cells so they inherit the
         # page background when opened in a browser.
@@ -181,8 +216,10 @@ class DocumentTab:
     def create_document(content: str, is_html: bool = False) -> QTextDocument:
         """Build a document without attaching it to a widget."""
         document = QTextDocument()
+        document.setUndoRedoEnabled(False)
         if not is_html:
             document.setPlainText(content)
+            document.setUndoRedoEnabled(True)
             return document
 
         import base64
@@ -191,6 +228,7 @@ class DocumentTab:
         from PyQt6.QtCore import QBuffer, QIODevice
 
         images = {}
+        decoded_bytes = 0
 
         def extract_and_replace(match):
             src = match.group(1)
@@ -207,6 +245,12 @@ class DocumentTab:
                     image = reader.read()
                     buffer.close()
                     if not image.isNull():
+                        decoded_bytes += image.sizeInBytes()
+                        if decoded_bytes > AppConfig.MAX_DOCUMENT_MEMORY_MB * 1024 * 1024:
+                            raise IOError(
+                                "Decoded images exceed the document memory limit "
+                                f"of {AppConfig.MAX_DOCUMENT_MEMORY_MB} MB."
+                            )
                         import uuid
                         img_name = f"restored_{uuid.uuid4().hex[:8]}.{image_format}"
                         images[img_name] = image
@@ -222,6 +266,7 @@ class DocumentTab:
                 QTextDocument.ResourceType.ImageResource, QUrl(img_name), image
             )
         document.adjustSize()
+        document.setUndoRedoEnabled(True)
         return document
 
     def set_document(self, document: QTextDocument, source_content: str = ""):

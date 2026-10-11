@@ -1,6 +1,6 @@
 from pathlib import Path
 from PyQt6.QtCore import QObject, pyqtSignal, QCoreApplication
-from PyQt6.QtGui import QTextDocument
+from PyQt6.QtGui import QTextDocument, QImage
 from config.app_config import AppConfig
 
 # ============================================================================
@@ -44,6 +44,30 @@ class FileLoadWorker(QObject):
             self.failed.emit(str(e))
 
 
+class FileSaveWorker(QObject):
+    """Writes prepared content and its backup without blocking the UI."""
+    finished = pyqtSignal(str)
+    failed = pyqtSignal(str)
+
+    def __init__(self, filepath: Path, content, images: dict[str, QImage] | None = None):
+        super().__init__()
+        self.filepath = filepath
+        self.content = content
+        self.images = images or {}
+
+    def run(self):
+        try:
+            if self.images:
+                from models.document_tab import DocumentTab
+                content = DocumentTab.serialize_html_snapshot(self.content, self.images)
+            else:
+                content = self.content
+            FileOperations.write_file(self.filepath, content)
+            self.finished.emit(content)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+
 class FileOperations:
     """Handles all file I/O operations with proper error handling"""
     
@@ -74,12 +98,22 @@ class FileOperations:
                 content = f.read()
             is_html = filepath.suffix.lower() == '.html'
             return content, is_html
-        except UnicodeDecodeError:
-            # Try with latin-1 as fallback
-            with open(filepath, 'r', encoding='latin-1') as f:
-                content = f.read()
-            is_html = filepath.suffix.lower() == '.html'
-            return content, is_html
+        except UnicodeDecodeError as e:
+            raise UnicodeDecodeError(
+                e.encoding, e.object, e.start, e.end,
+                "File is not valid UTF-8",
+            ) from e
+
+    @staticmethod
+    def check_content_size(content: str) -> None:
+        """Reject content whose UTF-8 representation exceeds the file limit."""
+        size = len(content.encode("utf-8"))
+        limit = AppConfig.MAX_FILE_SIZE_MB * 1024 * 1024
+        if size > limit:
+            raise IOError(
+                f"File too large ({size / (1024 * 1024):.1f} MB). "
+                f"Maximum size is {AppConfig.MAX_FILE_SIZE_MB} MB."
+            )
     
     @staticmethod
     def write_file(filepath: Path, content: str, as_html: bool = True):
@@ -90,13 +124,15 @@ class FileOperations:
         backups never accumulate silently.
         Raises: IOError
         """
+        FileOperations.check_content_size(content)
         backup_path = None
 
         # Create backup if file exists (best-effort safety net during write)
         if filepath.exists():
             backup_path = filepath.with_suffix(filepath.suffix + '.bak')
             try:
-                backup_path.write_text(filepath.read_text(encoding='utf-8'), encoding='utf-8')
+                import shutil
+                shutil.copyfile(filepath, backup_path)
             except Exception:
                 backup_path = None  # Backup failed; don't try to delete it later
 

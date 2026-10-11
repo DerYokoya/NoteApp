@@ -8,7 +8,7 @@ from PyQt6.QtPrintSupport import QPrinter, QPrintDialog
 from config.app_config import AppConfig
 from config.styles import StyleSheet
 from models.document_tab import DocumentTab
-from services.file_operations import FileOperations, FileLoadWorker
+from services.file_operations import FileOperations, FileLoadWorker, FileSaveWorker
 from services.settings_manager import SettingsManager
 from services.spellcheck_service import SpellCheckService
 from services.export_services import html_to_markdown, save_html_as_docx
@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
         self._restore_active_index = -1
         self._restore_tabs_by_path: dict = {}
         self._load_threads: dict = {}  # filepath -> (QThread, FileLoadWorker), keeps them alive
+        self._save_threads: dict = {}
 
         self._setup_ui()
         self._setup_shortcuts()
@@ -438,20 +439,55 @@ class MainWindow(QMainWindow):
 
     def _autosave_all(self):
         """Autosave all modified tabs that have an existing file path"""
-        saved_any = False
         for tab in self.tabs:
             if tab.is_modified and tab.current_file and tab.current_file.exists():
+                key = str(tab.current_file)
+                if key in self._save_threads:
+                    continue
                 try:
                     is_html = tab.current_file.suffix.lower() == '.html'
-                    content = tab.get_content_html() if is_html else tab.get_content_plain()
-                    FileOperations.write_file(tab.current_file, content, is_html)
-                    tab.mark_saved()
-                    self._update_tab_title(tab)
-                    saved_any = True
-                except Exception:
-                    pass  # Silent fail — autosave is best-effort
-        if saved_any:
+                    if is_html:
+                        content, images = tab.get_content_html_snapshot()
+                    else:
+                        content, images = tab.get_content_plain(), {}
+                    self._save_file_async(tab, content, images, tab._change_generation)
+                except Exception as e:
+                    self.statusBar().showMessage(f"Autosave failed: {e}", 5000)
+
+    def _save_file_async(
+        self, doc_tab: DocumentTab, content: str, images: dict, generation: int
+    ):
+        filepath = doc_tab.current_file
+        if filepath is None:
+            return
+        key = str(filepath)
+        thread = QThread(self)
+        worker = FileSaveWorker(filepath, content, images)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(
+            lambda saved, tab=doc_tab, version=generation:
+                self._on_async_save_finished(tab, saved, version)
+        )
+        worker.failed.connect(
+            lambda message, path=filepath: self._on_async_save_failed(path, message)
+        )
+        worker.finished.connect(thread.quit)
+        worker.failed.connect(thread.quit)
+        thread.finished.connect(lambda: self._save_threads.pop(key, None))
+        self._save_threads[key] = (thread, worker)
+        thread.start()
+
+    def _on_async_save_finished(self, doc_tab: DocumentTab, content: str, generation: int):
+        if doc_tab.current_file and doc_tab._change_generation == generation:
+            doc_tab.mark_saved(content)
+            self._update_tab_title(doc_tab)
             self.statusBar().showMessage("Autosaved", 2000)
+
+    def _on_async_save_failed(self, filepath: Path, message: str):
+        self.statusBar().showMessage(
+            f"Autosave failed for {filepath.name}: {message}", 5000
+        )
 
     def _restore_settings(self):
         """Restore saved application settings"""
@@ -788,7 +824,7 @@ class MainWindow(QMainWindow):
 
             FileOperations.write_file(doc_tab.current_file, content, is_html)
 
-            doc_tab.mark_saved()
+            doc_tab.mark_saved(content)
             self._update_tab_title(doc_tab)
             self._update_window_title(doc_tab)
 
