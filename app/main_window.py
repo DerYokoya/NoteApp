@@ -426,10 +426,11 @@ class MainWindow(QMainWindow):
         replace_shortcut.activated.connect(self._show_search_bar_with_replace)
 
     def _setup_timers(self):
-        """Setup periodic timers for status updates and autosave"""
+        """Setup debounced status updates and periodic autosave"""
         self.status_timer = QTimer()
-        self.status_timer.timeout.connect(self._update_status_bar)
-        self.status_timer.start(100)
+        self.status_timer.setSingleShot(True)
+        self.status_timer.setInterval(150)
+        self.status_timer.timeout.connect(self._update_word_count)
 
         self.autosave_timer = QTimer()
         self.autosave_timer.timeout.connect(self._autosave_all)
@@ -537,8 +538,9 @@ class MainWindow(QMainWindow):
     def _wire_tab(self, doc_tab: DocumentTab):
         """Connect signals for a newly created or loaded DocumentTab."""
         doc_tab.text_edit.textChanged.connect(self._on_text_changed)
+        doc_tab.text_edit.textChanged.connect(self._schedule_word_count_update)
         doc_tab.text_edit.cursorPositionChanged.connect(self._update_format_buttons)
-        doc_tab.text_edit.cursorPositionChanged.connect(self._update_status_bar)
+        doc_tab.text_edit.cursorPositionChanged.connect(self._update_cursor_status)
         doc_tab.text_edit.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         doc_tab.text_edit.customContextMenuRequested.connect(
             lambda pos, te=doc_tab.text_edit: self.ctx_menu_ctrl.show(pos, te)
@@ -1314,13 +1316,29 @@ class MainWindow(QMainWindow):
 
         self.status_widget.update_file(current_tab.get_file_path())
 
+        self._update_cursor_status()
+        self._update_word_count()
+
+    def _update_cursor_status(self):
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+
         cursor = current_tab.text_edit.textCursor()
         block = cursor.block()
         line = block.blockNumber() + 1
         col = cursor.positionInBlock() + 1
         self.status_widget.update_cursor(line, col)
 
-        text = current_tab.get_content_plain()
+    def _schedule_word_count_update(self):
+        self.status_timer.start()
+
+    def _update_word_count(self):
+        current_tab = self._get_current_tab()
+        if not current_tab:
+            return
+
+        text = current_tab.text_edit.toPlainText()
         words = len(text.split()) if text.strip() else 0
         chars = len(text)
         self.status_widget.update_word_count(words, chars)
