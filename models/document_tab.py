@@ -173,72 +173,62 @@ class DocumentTab:
         return html
 
     def set_content(self, content: str, is_html: bool = False):
-        """Set document content, preserving undo stack and restoring images"""
-        cursor = self.text_edit.textCursor()
-        cursor.beginEditBlock()
-        
-        if is_html:
-            # Extract base64 images from HTML before setting
-            import base64
-            from PyQt6.QtCore import QByteArray
-            from PyQt6.QtGui import QImageReader
-            from PyQt6.QtCore import QBuffer, QIODevice
-            
-            images = {}
-            
-            def extract_and_replace(match):
-                src = match.group(1)
-                if src.startswith('data:image/'):
-                    # Parse the data URI
-                    header, data = src.split(',', 1)
-                    # Extract image format (png, jpeg, etc.)
-                    image_format = header.split('/')[1].split(';')[0]
-                    
-                    # Decode base64 data
-                    try:
-                        image_data = base64.b64decode(data)
-                        
-                        # Create QImage from bytes
-                        buffer = QBuffer()
-                        buffer.setData(QByteArray(image_data))
-                        buffer.open(QIODevice.OpenModeFlag.ReadOnly)
-                        
-                        reader = QImageReader(buffer)
-                        reader.setAutoDetectImageFormat(True)
-                        image = reader.read()
-                        buffer.close()
-                        
-                        if not image.isNull():
-                            # Generate unique name
-                            import uuid
-                            img_name = f"restored_{uuid.uuid4().hex[:8]}.{image_format}"
-                            images[img_name] = image
-                            return f'src="{img_name}"'
-                    except Exception as e:
-                        print(f"Failed to decode image: {e}")
-                
-                return match.group(0)
-            
-            # Replace all base64 data URIs with placeholder names
-            processed_html = re.sub(r'src="([^"]*)"', extract_and_replace, content)
-            
-            # Set the processed HTML
-            self.text_edit.setHtml(processed_html)
-            
-            # Add extracted images as document resources
-            doc = self.text_edit.document()
-            for img_name, image in images.items():
-                doc.addResource(QTextDocument.ResourceType.ImageResource, 
-                            QUrl(img_name), image)
-            
-            # Force document to refresh
-            doc.adjustSize()
-        else:
-            self.text_edit.setPlainText(content)
-            
-        cursor.endEditBlock()
-        self.text_edit.document().setModified(False)
-        self._last_saved_content = content
+        """Set document content and restore embedded images."""
+        document = self.create_document(content, is_html)
+        self.set_document(document, content)
+
+    @staticmethod
+    def create_document(content: str, is_html: bool = False) -> QTextDocument:
+        """Build a document without attaching it to a widget."""
+        document = QTextDocument()
+        if not is_html:
+            document.setPlainText(content)
+            return document
+
+        import base64
+        from PyQt6.QtCore import QByteArray
+        from PyQt6.QtGui import QImageReader
+        from PyQt6.QtCore import QBuffer, QIODevice
+
+        images = {}
+
+        def extract_and_replace(match):
+            src = match.group(1)
+            if src.startswith('data:image/'):
+                header, data = src.split(',', 1)
+                image_format = header.split('/')[1].split(';')[0]
+                try:
+                    image_data = base64.b64decode(data)
+                    buffer = QBuffer()
+                    buffer.setData(QByteArray(image_data))
+                    buffer.open(QIODevice.OpenModeFlag.ReadOnly)
+                    reader = QImageReader(buffer)
+                    reader.setAutoDetectImageFormat(True)
+                    image = reader.read()
+                    buffer.close()
+                    if not image.isNull():
+                        import uuid
+                        img_name = f"restored_{uuid.uuid4().hex[:8]}.{image_format}"
+                        images[img_name] = image
+                        return f'src="{img_name}"'
+                except Exception as e:
+                    print(f"Failed to decode image: {e}")
+            return match.group(0)
+
+        processed_html = re.sub(r'src="([^"]*)"', extract_and_replace, content)
+        document.setHtml(processed_html)
+        for img_name, image in images.items():
+            document.addResource(
+                QTextDocument.ResourceType.ImageResource, QUrl(img_name), image
+            )
+        document.adjustSize()
+        return document
+
+    def set_document(self, document: QTextDocument, source_content: str = ""):
+        """Attach a document built off-thread and mark it as saved."""
+        self.text_edit.setDocument(document)
+        document.setModified(False)
+        self._last_saved_content = source_content
         
     def get_content_plain(self) -> str:
         """Get document content as plain text"""

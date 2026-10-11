@@ -1,5 +1,6 @@
 from pathlib import Path
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QCoreApplication
+from PyQt6.QtGui import QTextDocument
 from config.app_config import AppConfig
 
 # ============================================================================
@@ -9,21 +10,36 @@ from config.app_config import AppConfig
 
 class FileLoadWorker(QObject):
     """
-    Runs FileOperations.read_file() on a background thread so large files
-    don't block the UI. Create one per load, move it to a QThread, and
-    start the thread - do not call run() directly.
+    Reads and prepares a document on a background thread so large files don't
+    block the UI. Create one per load, move it to a QThread, and start the
+    thread - do not call run() directly.
     """
-    finished = pyqtSignal(str, bool)   # content, is_html
+    finished = pyqtSignal(object, bool)   # QTextDocument, is_html
     failed = pyqtSignal(str)           # error message
 
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Path, spell_service=None):
         super().__init__()
         self.filepath = filepath
+        self.spell_service = spell_service
 
     def run(self):
         try:
             content, is_html = FileOperations.read_file(self.filepath)
-            self.finished.emit(content, is_html)
+            from models.document_tab import DocumentTab
+
+            document = DocumentTab.create_document(content, is_html)
+            highlighter = None
+            if self.spell_service is not None:
+                from widgets.spellcheck_highlighter import SpellCheckHighlighter
+
+                highlighter = SpellCheckHighlighter(document, self.spell_service)
+            # A QTextDocument is safe to construct away from widgets. Move it
+            # before handing it to the GUI thread so setDocument() is cheap.
+            gui_thread = QCoreApplication.instance().thread()
+            if highlighter is not None and highlighter.parent() is None:
+                highlighter.moveToThread(gui_thread)
+            document.moveToThread(gui_thread)
+            self.finished.emit((document, highlighter), is_html)
         except Exception as e:
             self.failed.emit(str(e))
 

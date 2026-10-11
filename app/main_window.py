@@ -545,10 +545,11 @@ class MainWindow(QMainWindow):
         doc_tab.text_edit.customContextMenuRequested.connect(
             lambda pos, te=doc_tab.text_edit: self.ctx_menu_ctrl.show(pos, te)
         )
-        doc_tab.spell_highlighter = SpellCheckHighlighter(
-            doc_tab.text_edit.document(), self.spell_service
-        )
-        doc_tab.spell_highlighter.set_enabled(self.spell_check_enabled)
+        if not hasattr(doc_tab, "spell_highlighter"):
+            doc_tab.spell_highlighter = SpellCheckHighlighter(
+                doc_tab.text_edit.document(), self.spell_service
+            )
+            doc_tab.spell_highlighter.set_enabled(self.spell_check_enabled)
 
     def close_tab(self, index: int):
         """Close tab at given index"""
@@ -654,7 +655,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Loading {filepath.name}...")
 
         thread = QThread(self)
-        worker = FileLoadWorker(filepath)
+        worker = FileLoadWorker(filepath, self.spell_service)
         worker.moveToThread(thread)
 
         thread.started.connect(worker.run)
@@ -667,7 +668,7 @@ class MainWindow(QMainWindow):
         self._load_threads[str(filepath)] = (thread, worker)
         thread.start()
 
-    def _on_file_loaded(self, filepath: Path, content: str, is_html: bool):
+    def _on_file_loaded(self, filepath: Path, content, is_html: bool):
         """Handle a successful background file load (runs on the main thread)."""
         if self._is_restoring_session:
             # The placeholder tab for this file already exists in the right
@@ -677,7 +678,7 @@ class MainWindow(QMainWindow):
                 self._on_restore_step_done()
                 return
 
-            doc_tab.set_content(content, is_html)
+            self._apply_loaded_content(doc_tab, content, is_html)
             doc_tab.text_edit.setReadOnly(False)
             index = self.tab_widget.indexOf(doc_tab.text_edit)
             if index != -1:
@@ -686,7 +687,7 @@ class MainWindow(QMainWindow):
             self._on_restore_step_done()
         else:
             doc_tab = DocumentTab()
-            doc_tab.set_content(content, is_html)
+            doc_tab = self._apply_loaded_content(DocumentTab(), content, is_html)
             doc_tab.current_file = filepath
 
             self._wire_tab(doc_tab)
@@ -700,6 +701,34 @@ class MainWindow(QMainWindow):
         self._update_recent_files_menu()
 
         self.statusBar().showMessage(f"Opened: {filepath.name}", 3000)
+
+    def _apply_loaded_content(self, doc_tab: DocumentTab, content, is_html: bool):
+        """Attach a worker-built document, retaining compatibility with tests."""
+        if isinstance(content, QTextDocument):
+            loaded_highlighter = None
+        elif (
+            isinstance(content, tuple)
+            and len(content) == 2
+            and isinstance(content[0], QTextDocument)
+        ):
+            content, loaded_highlighter = content
+        else:
+            loaded_highlighter = None
+
+        if isinstance(content, QTextDocument):
+            had_spell_highlighter = hasattr(doc_tab, "spell_highlighter")
+            doc_tab.set_document(content)
+            if loaded_highlighter is not None:
+                doc_tab.spell_highlighter = loaded_highlighter
+                doc_tab.spell_highlighter.set_enabled(self.spell_check_enabled)
+            elif had_spell_highlighter:
+                doc_tab.spell_highlighter = SpellCheckHighlighter(
+                    content, self.spell_service
+                )
+                doc_tab.spell_highlighter.set_enabled(self.spell_check_enabled)
+        else:
+            doc_tab.set_content(content, is_html)
+        return doc_tab
 
     def _on_file_load_failed(self, filepath: Path, message: str):
         """Handle a failed background file load (runs on the main thread)."""
